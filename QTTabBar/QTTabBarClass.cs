@@ -49,12 +49,12 @@ using System.Management;
 using IDataObject = System.Runtime.InteropServices.ComTypes.IDataObject;
 
 namespace QTTabBarLib {
-    /**
+        /**
         private Rectangle DraggingDestRect;
         private QTabItem DraggingTab;
         private Point dragStartPoint;
-     sealed class B : A {}
-     */
+       sealed class B : A {}
+       */
     [ComVisible(true), Guid("d2bf470e-ed1c-487f-a333-2bd8835eb6ce")]
     public partial class QTTabBarClass : TabBarBase
     {
@@ -73,6 +73,8 @@ namespace QTTabBarLib {
         private Cursor curTabDrag;
         private Rectangle DraggingDestRect;
         private QTabItem DraggingTab;
+        // True while the left mouse button is held down on a tab.
+        private bool fLeftMouseDown;
         private DropTargetWrapper dropTargetWrapper;
         private NativeWindowController explorerController;
         
@@ -6748,7 +6750,6 @@ namespace QTTabBarLib {
             }
         }
 
-        /**
         private void tabControl1_MouseDown(object sender, MouseEventArgs e) {
             QTabItem tabMouseOn = tabControl1.GetTabMouseOn();
             DraggingTab = null;
@@ -6757,15 +6758,16 @@ namespace QTTabBarLib {
                     dragStartPoint = e.Location;
                     DraggingTab = tabMouseOn;
                     NowTabDragging = false;
+                    fLeftMouseDown = true;
                 }
                 else if(e.Button == MouseButtons.Right) {
                     ContextMenuedTab = tabMouseOn;
                 }
             }
         }
-            else if((DraggingTab != null) && ((ModifierKeys & Keys.Shift) != Keys.Shift)) {
+            else if(fLeftMouseDown && (DraggingTab != null) && ((ModifierKeys & Keys.Shift) != Keys.Shift)) {
                 if(!NowTabDragging) {
-                    if(MouseButtons == MouseButtons.Left) {
+                    if(fLeftMouseDown) {
                         Size dragSize = SystemInformation.DragSize;
                         Rectangle dragRect = new Rectangle(dragStartPoint.X - dragSize.Width / 2, dragStartPoint.Y - dragSize.Height / 2, dragSize.Width, dragSize.Height);
                         if(dragRect.Contains(e.Location)) {
@@ -6778,7 +6780,7 @@ namespace QTTabBarLib {
                         return;
                     }
                 }
-                if(Explorer.Busy || (MouseButtons != MouseButtons.Left)) {
+                if(Explorer.Busy || !fLeftMouseDown) {
                     NowTabDragging = false;
                     // Leave DraggingTab set so MouseUp doesn't get confused.
                     // It will be unset in MouseUp.
@@ -6872,6 +6874,7 @@ namespace QTTabBarLib {
 
         // 鼠标在标签上操作
         private void tabControl1_MouseUp(object sender, MouseEventArgs e) {
+            fLeftMouseDown = false;
             if (null == tabControl1 || tabControl1.IsDisposed)
             {
                 // 如果是最后一个标签，则出现bug
@@ -6937,6 +6940,9 @@ namespace QTTabBarLib {
                 DraggingTab = null;                   // firing if the MouseDown was on a tab.
             }
             Cursor = Cursors.Default;
+            DraggingTab = null;
+            DraggingDestRect = Rectangle.Empty;
+            NowTabDragging = false;
         }
 
         private void tabControl1_PointedTabChanged(object sender, QTabCancelEventArgs e) {
