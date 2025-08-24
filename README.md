@@ -9,6 +9,7 @@
 [![Github Stars](https://img.shields.io/github/stars/indiff/qttabbar?logo=github)](https://github.com/indiff/qttabbar)
 [![Gitee Stars](https://gitee.com/qwop/qttabbar/badge/star.svg)](https://gitee.com/qwop/qttabbar)
 [![.Net Framework 4.0](https://img.shields.io/badge/.NET%3D4.0-blue.svg)](https://www.microsoft.com/zh-CN/download/details.aspx?id=17851)
+[![Build Status](https://github.com/indiff/qttabbar/workflows/QTTabBar%20Build/badge.svg)](https://github.com/indiff/qttabbar/actions)
  
 # Introduction [中文版本](README_zh.md)
 ![qttabbar2](https://user-images.githubusercontent.com/501276/131287626-fe8f1fdd-a894-43f8-9620-b7145d70936d.gif)
