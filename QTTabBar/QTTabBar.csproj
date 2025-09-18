@@ -222,6 +222,7 @@
     <Compile Include="FreeBitmap.cs" />
     <Compile Include="Graphic.cs" />
     <Compile Include="ICommandInvokerWindow.cs" />
+    <Compile Include="TabSessionManager.cs" />
     <Compile Include="Interop\CoreErrorHelper.cs" />
     <Compile Include="Interop\GWL.cs" />
     <Compile Include="Interop\IShellExecuteHook.cs" />

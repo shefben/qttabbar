@@ -3221,6 +3221,9 @@ label_22:
 
     private bool OnViewBackgroundClick(EventClick click)
     {
+      // Ignore background double-clicks to prevent unintended navigation
+      if (click == EventClick.LeftDouble)
+        return true;
       int interactiveValueFromClick = UserEvents.GetInteractiveValueFromClick(click, (int[]) null, UserEvents.ViewBackgroundMiddleClick, valueDoubleClick: UserEvents.ViewBackgroundDoubleClick);
       if (UserEvents.IsIndexPersistentID(interactiveValueFromClick))
       {
