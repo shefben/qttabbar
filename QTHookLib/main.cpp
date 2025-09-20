@@ -342,8 +342,9 @@ std::wstring GetIniString(std::wstring FilePath, std::wstring AppName, std::wstr
 			return std::wstring();
 		}
 
-		LARGE_INTEGER fileSize{};
-		if (!GetFileSizeEx(pFile, &fileSize)) {
+                LARGE_INTEGER fileSize;
+                fileSize.QuadPart = 0;
+                if (!GetFileSizeEx(pFile, &fileSize)) {
 			CloseHandle(pFile);
 			return std::wstring();
 		}
