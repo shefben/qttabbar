@@ -48,7 +48,7 @@ namespace QuizoPlugins {
 
         private const int WM_COMMAND = 0x0111;
 
-        private static readonly bool EnableLogger = false;
+        private const bool ENABLE_LOGGER = false;
 
 
         public static void FileOperation(FileOpActions action, IntPtr hwndExplr, IShellBrowser shellBrowser) {
@@ -113,19 +113,20 @@ namespace QuizoPlugins {
                 MakeErrorLog(e, "RefreshItems");
             }
             finally {
-            if (EnableLogger)
-                if (shellView != null)
+                if (ENABLE_LOGGER)
                 {
-                    // log(" ReleaseComObject shellView " + shellView);
-                    // Marshal.ReleaseComObject(shellView);
-                }
+                    if (shellView != null)
+                    {
+                        // log(" ReleaseComObject shellView " + shellView);
+                        // Marshal.ReleaseComObject(shellView);
+                    }
 
-                if (shellFolderView != null)
-                {
-                    // log(" ReleaseComObject shellFolderView " + shellFolderView);
-                    // Marshal.ReleaseComObject(shellFolderView);
+                    if (shellFolderView != null)
+                    {
+                        // log(" ReleaseComObject shellFolderView " + shellFolderView);
+                        // Marshal.ReleaseComObject(shellFolderView);
+                    }
                 }
-                    
             }
         }
 
