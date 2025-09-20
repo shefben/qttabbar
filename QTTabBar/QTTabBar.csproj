@@ -324,13 +324,6 @@
     <Compile Include="OptionsDialog\Options01_Window.xaml.cs">
       <DependentUpon>Options01_Window.xaml</DependentUpon>
     </Compile>
-    </Compile>
-    <Compile Include="OptionsDialog\Options02_Tabs.xaml.cs">
-      <DependentUpon>Options02_Tabs.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="OptionsDialog\Options01_Window.xaml.cs">
-      <DependentUpon>Options01_Window.xaml</DependentUpon>
-    </Compile>
     <Compile Include="PluginManager.cs" />
     <Compile Include="PluginServer.cs">
       <SubType>UserControl</SubType>
@@ -695,22 +688,38 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="OptionsDialog\Options12_Plugins.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="OptionsDialog\Options13_Language.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="OptionsDialog\Options14_About.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="OptionsDialog\Options15_Sessions.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
+    <Page Include="OptionsDialog\Options12_Plugins.xaml">
+
+      <Generator>MSBuild:Compile</Generator>
+
+      <SubType>Designer</SubType>
+
+    </Page>
+
+    <Page Include="OptionsDialog\Options13_Language.xaml">
+
+      <Generator>MSBuild:Compile</Generator>
+
+      <SubType>Designer</SubType>
+
+    </Page>
+
+    <Page Include="OptionsDialog\Options14_About.xaml">
+
+      <Generator>MSBuild:Compile</Generator>
+
+      <SubType>Designer</SubType>
+
+    </Page>
+
+    <Page Include="OptionsDialog\Options15_Sessions.xaml">
+
+      <Generator>MSBuild:Compile</Generator>
+
+      <SubType>Designer</SubType>
+
+    </Page>
+
     <Page Include="OptionsDialog\Options02_Tabs.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
