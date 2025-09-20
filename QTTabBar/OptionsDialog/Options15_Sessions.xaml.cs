@@ -15,6 +15,7 @@ namespace QTTabBarLib {
         internal Options15_Sessions() {
             InitializeComponent();
             lstSessions.ItemsSource = sessions;
+            lstSessions.KeyDown += lstSessions_KeyDown;
             UpdateUiState();
         }
 
@@ -62,6 +63,12 @@ namespace QTTabBarLib {
 
         private void lstSessions_MouseDoubleClick(object sender, MouseButtonEventArgs e) {
             if(LaunchSelectedSession()) {
+                e.Handled = true;
+            }
+        }
+
+        private void lstSessions_KeyDown(object sender, KeyEventArgs e) {
+            if(e.Key == Key.Enter && LaunchSelectedSession()) {
                 e.Handled = true;
             }
         }

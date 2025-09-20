@@ -463,17 +463,17 @@ namespace QTTabBarLib {
 
         public static void LocalInvokeMain(Action<QTTabBarClass> action, bool doAsync = false) {
             QTTabBarClass instance;
-            // »ñÈ¡Ö÷½ø³ÌµÄ QTTabBarµÄÊµÀý
+            // È¡Ìµ QTTabBarÊµ
             using(new Keychain(rwLockTabBar, false)) {
                 instance = sdTabHandles.Count == 0 ? null : sdTabHandles.Peek();
             }
             if(instance == null) return;
             if(doAsync) {
-                QTUtility2.log("Òì²½µ÷ÓÃ:");
+                QTUtility2.log("ì²½:");
                 instance.BeginInvoke(action, instance);    
             }
             else {
-                QTUtility2.log("Í¬²½µ÷ÓÃ:" );
+                QTUtility2.log("Í¬:" );
                 instance.Invoke(action, instance);   
             }
         }
@@ -531,7 +531,7 @@ namespace QTTabBarLib {
             }*/
             if (Interlocked.Exchange(ref inTimer, 1) != 0)
             {
-                QTUtility2.log("¾Ü¾ø½øÈë");
+                QTUtility2.log("Ü¾");
                 return;
             }
             try
@@ -541,9 +541,9 @@ namespace QTTabBarLib {
                     selectDict[key] = list;
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                QTUtility2.log("Òì³£");
+                QTUtility2.MakeErrorLog(ex, "InstanceManager.PutSelect");
             }
             finally
             {
@@ -559,7 +559,7 @@ namespace QTTabBarLib {
             }*/
             if (Interlocked.Exchange(ref inTimer, 1) != 0)
             {
-                QTUtility2.log("¾Ü¾ø½øÈë");
+                QTUtility2.log("Ü¾");
                 return;
             }
             try
@@ -569,9 +569,9 @@ namespace QTTabBarLib {
                     selectDict.Remove(key);
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                QTUtility2.log("Òì³£");
+                QTUtility2.MakeErrorLog(ex, "InstanceManager.RemoveSelect");
             }
             finally
             {
@@ -588,7 +588,7 @@ namespace QTTabBarLib {
             }*/
             if (Interlocked.Exchange(ref inTimer, 1) != 0)
             {
-                QTUtility2.log("¾Ü¾ø½øÈë");
+                QTUtility2.log("Ü¾");
                 return null;
             }
             try
@@ -599,9 +599,9 @@ namespace QTTabBarLib {
                     return selectDict.TryGetValue(key, out list) ? list : null;
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                QTUtility2.log("Òì³£");
+                QTUtility2.MakeErrorLog(ex, "InstanceManager.GetSelect");
                 return null;
             }
             finally

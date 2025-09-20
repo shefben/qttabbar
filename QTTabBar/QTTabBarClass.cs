@@ -114,7 +114,7 @@ namespace QTTabBarLib {
         private string strDraggingDrive;
         private string strDraggingStartPath;
         private SubDirTipForm subDirTip_Tab;
-        public QTabControl tabControl1;
+        public new QTabControl tabControl1;
         private QTabItem tabForDD;
         private TabSwitchForm tabSwitcher;
         private Timer timerOnTab;
@@ -278,7 +278,7 @@ namespace QTTabBarLib {
                             QTUtility2.log("installDateString " + installDateString);
                             installDate = DateTime.Parse(installDateString);
                         }
-                        catch (Exception e)
+                        catch (Exception)
                         {
                             installDate = DateTime.ParseExact(installDateString, "yyyy/MM/dd HH:mm:ss", CultureInfo.CurrentCulture);
                             // ignore exception 
@@ -294,7 +294,7 @@ namespace QTTabBarLib {
                                 QTUtility2.log("ActivationDate " + value);
                                 lastActivation = DateTime.Parse(value);
                             }
-                            catch (Exception e)
+                            catch (Exception)
                             {
                                 lastActivation = DateTime.ParseExact(value, "yyyy/MM/dd HH:mm:ss", CultureInfo.CurrentCulture);
                                 // ignore exception 
@@ -3526,7 +3526,8 @@ namespace QTTabBarLib {
             }
             catch (Exception ex)
             {
-                result = "";
+                result = string.Empty;
+                QTUtility2.MakeErrorLog(ex, "QTTabBarClass.GetCommandLine");
             }
             string str = Marshal.PtrToStringUni(PInvoke.GetCommandLine());
             QTUtility2.log(" process command line 2 : " + str);
@@ -6891,14 +6892,14 @@ namespace QTTabBarLib {
                 if((!flag || (ContextMenuedTab == CurrentTab)) && CurrentTab.TabLocked)
                 {
                     QTUtility2.log("Clone Tab Button1");
-                    CloneTabButton(CurrentTab, targetPath, true, TabIndex());
+                    CloneTabButton(CurrentTab, targetPath, true, GetNewTabInsertIndex());
                     return;
                 }
                 if(flag && (ContextMenuedTab != CurrentTab)) {
                     if(ContextMenuedTab != null) {
                         if(ContextMenuedTab.TabLocked) {
                             // QTUtility2.log("Clone Tab Button2");
-                            var index = TabIndex();
+                            var index = GetNewTabInsertIndex();
                             // 往左边加入一个标签
                             // tabControl1.TabPages.IndexOf(ContextMenuedTab) + 1
                             CloneTabButton(
@@ -6941,7 +6942,7 @@ namespace QTTabBarLib {
         }
 
         // 修复预览目录跳转到正确的标签位置
-        private int TabIndex()
+        private int GetNewTabInsertIndex()
         {
             var index = 1;
             if (Config.Tabs.NewTabPosition == TabPos.Rightmost)
