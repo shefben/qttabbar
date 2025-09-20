@@ -26,6 +26,9 @@
 #include <time.h>
 #include <map>
 
+using std::max;
+using std::min;
+
 //GDI 相关 Using GDI
 #include <comdef.h>
 #include <gdiplus.h>
