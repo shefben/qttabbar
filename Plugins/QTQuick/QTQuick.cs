@@ -526,7 +526,6 @@ namespace Qwop {
                         }
                     case 4:
                         {
-                            string MyDosComLine1, MyDosComLine2;
                             string msinfo32 = Environment.GetEnvironmentVariable("systemroot") + "\\System32\\msinfo32.exe";
                             Process.Start(msinfo32);
                             break;
@@ -547,7 +546,7 @@ namespace Qwop {
                             // PInvoke.PostMessage(hwndExplr, WM.CLOSE, IntPtr.Zero, (IntPtr)nCode)
                             Thread.Sleep(800);
                             Process.Start("explorer.exe");*/
-                            string MyDosComLine1, MyDosComLine2, MyDosComLine3;
+                            string MyDosComLine1, MyDosComLine2;
                             MyDosComLine1 = "taskkill /f /im explorer.exe";//返回根目录命令
                             MyDosComLine2 =  "start explorer.exe";//进入MyFiles目录
                             Process myProcess = new Process();
@@ -732,31 +731,34 @@ namespace Qwop {
                                 {
                                     Thread.Sleep( 3000 );
 
-                                    
+
                                     PowerShell.Create().AddCommand("setx")
                                         .AddParameter("JAVA_HOME", selectedPath)
                                         .AddParameter("/M")
                                         .Invoke();
                                 }).Start();*/
                             }
-                            else {
-                            catch (Exception ex) {
-                                QTUtility2.MakeErrorLog(ex);
+                            else
+                            {
+                                MessageBox.Show("未找到 SetHome.exe");
+                            }
                             break;
                         }
 
-                        catch (Exception ex)
+                    case 8:  // 删除 QTTabGroup（启动项）
                         {
-                            QTUtility2.MakeErrorLog(ex);
+                            string startUpFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
                             try
                             {
                                 string[] groupFiles = Directory.GetFiles(startUpFolderPath, "*.QTTabGroup");
-                                foreach (string groupFile in groupFiles) {
+                                foreach (string groupFile in groupFiles)
+                                {
                                     File.Delete(groupFile);
                                 }
                             }
-                            catch (Exception e) {
-                               // QTUtility2.MakeErrorLog(e);
+                            catch (Exception ex)
+                            {
+                                QTUtility2.MakeErrorLog(ex);
                             }
                             break;
                         }
@@ -783,7 +785,7 @@ namespace Qwop {
                             process.StartInfo.WorkingDirectory = appdataQT;
                             process.Start();
                         }
-                        catch (Exception e)
+                        catch (Exception)
                         {
                             // QTUtility2.MakeErrorLog(e);
                         }

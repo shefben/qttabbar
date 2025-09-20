@@ -136,7 +136,6 @@ namespace QTTabBarLib {
             // InstallHooks();
         }
 
-        private CreateWindowExWHookProc hookProc_CreateWindowExW;
         private HookProc hookProc_FillRect;
         private IntPtr hHook_FillRect;
 
