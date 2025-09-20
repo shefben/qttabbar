@@ -269,7 +269,9 @@ namespace QTTabBarLib {
 
         public static bool Bool(string setting)
         {
-            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (TryGetSettingProperty(setting, out category, out property))
             {
                 object value = property.GetValue(category);
                 if (property.PropertyType == typeof(bool))
@@ -293,7 +295,9 @@ namespace QTTabBarLib {
 
         public static int Get(string setting)
         {
-            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (TryGetSettingProperty(setting, out category, out property))
             {
                 object value = property.GetValue(category);
                 if (value == null)
@@ -337,7 +341,9 @@ namespace QTTabBarLib {
 
         private static void SetInternal(string setting, object value)
         {
-            if (!TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property) || !property.CanWrite)
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (!TryGetSettingProperty(setting, out category, out property) || !property.CanWrite)
             {
                 return;
             }
