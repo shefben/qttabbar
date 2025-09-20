@@ -732,31 +732,34 @@ namespace Qwop {
                                 {
                                     Thread.Sleep( 3000 );
 
-                                    
+
                                     PowerShell.Create().AddCommand("setx")
                                         .AddParameter("JAVA_HOME", selectedPath)
                                         .AddParameter("/M")
                                         .Invoke();
                                 }).Start();*/
                             }
-                            else {
-                            catch (Exception ex) {
-                                QTUtility2.MakeErrorLog(ex);
+                            else
+                            {
+                                MessageBox.Show("未找到 SetHome.exe");
+                            }
                             break;
                         }
 
-                        catch (Exception ex)
+                    case 8:  // 删除 QTTabGroup（启动项）
                         {
-                            QTUtility2.MakeErrorLog(ex);
+                            string startUpFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
                             try
                             {
                                 string[] groupFiles = Directory.GetFiles(startUpFolderPath, "*.QTTabGroup");
-                                foreach (string groupFile in groupFiles) {
+                                foreach (string groupFile in groupFiles)
+                                {
                                     File.Delete(groupFile);
                                 }
                             }
-                            catch (Exception e) {
-                               // QTUtility2.MakeErrorLog(e);
+                            catch (Exception ex)
+                            {
+                                QTUtility2.MakeErrorLog(ex);
                             }
                             break;
                         }
