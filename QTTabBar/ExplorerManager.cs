@@ -11,13 +11,13 @@ namespace QTTabBarLib
     internal sealed class ExplorerManager : NativeWindow, IDisposable, ICommandInvokerWindow
     {
         [ThreadStatic]
-        public static ExplorerManager ThreadInstance;
+        public static ExplorerManager ThreadInstance = null;
         [ThreadStatic]
-        public static IntPtr ThreadExplorerHandle;
+        public static IntPtr ThreadExplorerHandle = IntPtr.Zero;
         [ThreadStatic]
-        private static int windowDpi;
+        private static int windowDpi = 0;
         [ThreadStatic]
-        public static bool StartUpProcessComplete;
+        public static bool StartUpProcessComplete = false;
 #pragma warning disable 169, 414, 649
         private SHDocVw.WebBrowser explorer;
         private IShellBrowser shellBrowser;

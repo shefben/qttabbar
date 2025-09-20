@@ -48,14 +48,27 @@ namespace QuizoPlugins {
 
         private const int WM_COMMAND = 0x0111;
 
-        private const bool ENABLE_LOGGER = false;
+        private static bool? loggerEnabled;
+
+        private static bool IsLoggerEnabled
+        {
+            get
+            {
+                if(!loggerEnabled.HasValue)
+                {
+                    loggerEnabled = ResolveLoggerPreference();
+                }
+
+                return loggerEnabled.Value;
+            }
+        }
 
 
         public static void FileOperation(FileOpActions action, IntPtr hwndExplr, IShellBrowser shellBrowser) {
-            IntPtr hwnd = fVista ? 
-                FindWindowEx(hwndExplr, 
-                    IntPtr.Zero, 
-                    new StringBuilder("ShellTabWindowClass"), 
+            IntPtr hwnd = fVista ?
+                FindWindowEx(hwndExplr,
+                    IntPtr.Zero,
+                    new StringBuilder("ShellTabWindowClass"),
                     null) : hwndExplr;
 
             if (fVista)
@@ -113,7 +126,7 @@ namespace QuizoPlugins {
                 MakeErrorLog(e, "RefreshItems");
             }
             finally {
-                if (ENABLE_LOGGER)
+                if (IsLoggerEnabled)
                 {
                     if (shellView != null)
                     {
@@ -131,10 +144,36 @@ namespace QuizoPlugins {
         }
 
 
-        
+
+        private static bool ResolveLoggerPreference()
+        {
+            string flag = Environment.GetEnvironmentVariable("QTFILETOOLS_ENABLE_LOGGER");
+            if(String.IsNullOrEmpty(flag))
+                return false;
+
+            flag = flag.Trim();
+
+            bool parsed;
+            if(bool.TryParse(flag, out parsed))
+                return parsed;
+
+            if(string.Equals(flag, "1", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(flag, "yes", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(flag, "on", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if(string.Equals(flag, "0", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(flag, "no", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(flag, "off", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return false;
+        }
+
+
         public static void log(string optional)
         {
-            if (ENABLE_LOGGER)
+            if (IsLoggerEnabled)
             {
                 string appdata = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string appdataQT = Path.Combine(appdata, "QTTabBar");
