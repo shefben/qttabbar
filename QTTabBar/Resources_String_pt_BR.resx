@@ -133,7 +133,7 @@
     <value>08/15/2022</value>
   </data>
   <data name="ButtonBar_BtnName" xml:space="preserve">
-    <value>Separador;Voltar;Avançar;Grupo;Recentes;Aplicativos;Nova janela;Fechar essa;Bloquear;Copiar;Sempre visível;Fechar;Fechar outras;Fechar janela;Fechar a esquerda;Fechar a direita;Subir um nível;Recarregar;Procurar;Opacidade;Caixa de pesquisa;Opções</value>
+    <value>Separador;Voltar;Avançar;Grupo;Recentes;Aplicativos;Nova janela;Fechar essa;Bloquear;Copiar;Sempre visível;Fechar;Fechar outras;Fechar janela;Fechar a esquerda;Fechar a direita;Subir um nível;Recarregar;Procurar;Opacidade;Caixa de pesquisa;Opções;Abas recentemente abertas</value>
   </data>
   <data name="ButtonBar_Misc" xml:space="preserve">
     <value>Caminho;Nome;Caminho atual da pasta;Nome da pasta atual;MD5; itens;Caminhos de todas as abas abertas</value>
@@ -255,5 +255,8 @@ Por favor, especifique arquivo de imagem 432 x 40 px.;Resultados da Pesquisa em;
   </data>
   <data name="Version_LangFile" xml:space="preserve">
     <value>1.0</value>
+  </data>
+  <data name="Options_Page15_Sessions" xml:space="preserve">
+    <value>Manage saved tab sessions.;Select a session and choose Open to launch it in a new Explorer window.;Open in new window;Refresh;No saved sessions were found.;Unable to open the selected session.</value>
   </data>
 </root>

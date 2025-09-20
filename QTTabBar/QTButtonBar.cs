@@ -61,12 +61,15 @@ namespace QTTabBarLib {
 		internal const int BII_WINDOWOPACITY        = 19;
         internal const int BII_FILTERBAR            = 20;
         internal const int BII_OPTION = 21;  // todo...
+        internal const int BII_RECENTOPENED        = 22;  // Recent opened tabs (history)
+        internal const int BII_TAGFILTER           = 23;  // Tag tools
+        internal const int BII_GITQUICK            = 24;  // Git quick actions
 
         /// <summary>
         ///  内部的按钮的个数 add by qwop.
         /// </summary>
         // internal const int INTERNAL_BUTTON_COUNT    = 50;
-        internal const int INTERNAL_BUTTON_COUNT    = 22;
+        internal const int INTERNAL_BUTTON_COUNT    = 25;
        
 
         private static readonly Regex reAsterisc = new Regex(@"\\\*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -85,6 +88,9 @@ namespace QTTabBarLib {
         private DropDownMenuReorderable ddmrGroupButton;
         private DropDownMenuReorderable ddmrRecentlyClosed;
         private DropDownMenuReorderable ddmrUserAppButton;
+        private DropDownMenuBase ddmrRecentOpened;
+        private DropDownMenuBase ddmrTags;
+        private DropDownMenuBase ddmrGit;
         private DropTargetWrapper dropTargetWrapper;
         private IntPtr ExplorerHandle;
         private bool fRearranging;
@@ -236,7 +242,8 @@ namespace QTTabBarLib {
         private void copyButton_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e) {
             QTTabBarClass tabBar = InstanceManager.GetThreadTabBar();
             if(tabBar != null) {
-                tabBar.DoFileTools(((DropDownMenuBase)sender).Items.IndexOf(e.ClickedItem));
+                int idx = ((DropDownMenuBase)sender).Items.IndexOf(e.ClickedItem);
+                if(!tabBar.DoFileTools(idx)) tabBar.DoFileToolsEx(idx);
             }
         }
 
@@ -340,6 +347,39 @@ namespace QTTabBarLib {
                     button.DropDown = ddmrUserAppButton;
                     button.Enabled = AppsManager.UserApps.Any();
                     break;
+
+                case BII_RECENTOPENED:
+                    if (ddmrRecentOpened == null) {
+                        ddmrRecentOpened = new DropDownMenuBase(components) {
+                            ShowCheckMargin = false,
+                            ShowImageMargin = true
+                        };
+                        ddmrRecentOpened.ImageList = QTUtility.ImageListGlobal;
+                        ddmrRecentOpened.ItemClicked += dropDownButtons_DropDown_ItemClicked;
+                        ddmrRecentOpened.Closed += dropDownButtons_DropDown_Closed;
+                    }
+                    button.DropDown = ddmrRecentOpened;
+                    button.Enabled = true;
+                    break;
+                case BII_TAGFILTER:
+                    if (ddmrTags == null) {
+                        ddmrTags = new DropDownMenuBase(components) { ShowCheckMargin = false, ShowImageMargin = false };
+                        ddmrTags.ItemClicked += dropDownButtons_DropDown_ItemClicked;
+                        ddmrTags.Closed += dropDownButtons_DropDown_Closed;
+                    }
+                    button.DropDown = ddmrTags;
+                    button.Enabled = true;
+                    break;
+
+                case BII_GITQUICK:
+                    if (ddmrGit == null) {
+                        ddmrGit = new DropDownMenuBase(components) { ShowCheckMargin = false, ShowImageMargin = false };
+                        ddmrGit.ItemClicked += dropDownButtons_DropDown_ItemClicked;
+                        ddmrGit.Closed += dropDownButtons_DropDown_Closed;
+                    }
+                    button.DropDown = ddmrGit;
+                    button.Enabled = true;
+                    break;
             }
             button.DropDownOpening += dropDownButtons_DropDownOpening;
             return button;
@@ -385,6 +425,7 @@ namespace QTTabBarLib {
                     case BII_GROUP:  // 添加到分组
                     case BII_RECENTTAB: // 最近关闭
                     case BII_APPLICATIONLAUNCHER: // 应用程序
+                    case BII_RECENTOPENED: // 最近打开的标签
                         item = CreateDropDownButton(index);
                         break;
 
@@ -400,7 +441,10 @@ namespace QTTabBarLib {
                                 new ToolStripMenuItem(strArray[2]),
                                 new ToolStripMenuItem(strArray[3]),
                                 new ToolStripMenuItem(strArray[4]),
-                                new ToolStripMenuItem(strArray[6])
+                                new ToolStripMenuItem(strArray[6]),
+                                new ToolStripSeparator(),
+                                new ToolStripMenuItem("Copy as Markdown"),
+                                new ToolStripMenuItem("Copy as HTML")
                                 // 可以添加复制工具
                         });
                         base2.ItemClicked += copyButton_DropDownItemClicked;
@@ -495,7 +539,11 @@ namespace QTTabBarLib {
                     item.BackColor = Config.Skin.TabShadActiveColor;
                 }*/
                 item.ImageScaling = ToolStripItemImageScaling.None;
-                item.Text = item.ToolTipText = ButtonItemsDisplayName[index];
+                {
+                    string fallback = (index == BII_RECENTOPENED) ? "Recent Opened Tabs" : (index == BII_TAGFILTER ? "Tags" : (index == BII_GITQUICK ? "Git" : ""));
+                    string label = (index >= 0 && index < ButtonItemsDisplayName.Length) ? ButtonItemsDisplayName[index] : fallback;
+                    item.Text = item.ToolTipText = label;
+                }
                 /*
                  ************** 异常文本 **************
                    System.InvalidOperationException: 对象当前正在其他地方使用。
@@ -505,8 +553,9 @@ namespace QTTabBarLib {
                  */
                 lock (imgLock2) // by indiff
                 {
+                    int imgIdx = (index == BII_RECENTOPENED || index == BII_TAGFILTER || index == BII_GITQUICK) ? (BII_RECENTTAB - 1) : (index - 1);
                     item.Image =
-                        (Config.BBar.LargeButtons ? imageStrip_Large[index - 1] : imageStrip_Small[index - 1])
+                        (Config.BBar.LargeButtons ? imageStrip_Large[imgIdx] : imageStrip_Small[imgIdx])
                          .Clone(
                             new Rectangle(Point.Empty, Config.BBar.LargeButtons ? sizeLargeButton : sizeSmallButton), PixelFormat.Format32bppArgb);
                 }
@@ -702,7 +751,7 @@ namespace QTTabBarLib {
         private void dropDownButtons_DropDown_ItemClicked(object sender, ToolStripItemClickedEventArgs e) {
             ToolStripItem ownerItem = ((ToolStripDropDown)sender).OwnerItem;
             QMenuItem clickedItem = e.ClickedItem as QMenuItem;
-            if(ownerItem == null || ownerItem.Tag == null || clickedItem == null) return;
+            if(ownerItem == null || ownerItem.Tag == null) return;
             int tag = (int)ownerItem.Tag;
             QTTabBarClass tabbar = InstanceManager.GetThreadTabBar();
             Keys modifierKeys = ModifierKeys;
@@ -735,6 +784,41 @@ namespace QTTabBarLib {
                 case BII_RECENTTAB: // 最近标签
                     using(IDLWrapper wrapper = new IDLWrapper(clickedItem.Path)) {
                         tabbar.OpenNewTabOrWindow(wrapper);
+                    }
+                    return;
+
+                case BII_RECENTOPENED:
+                    {
+                        string targetPath = clickedItem != null ? clickedItem.Path : (e.ClickedItem.Tag as string);
+                        if (!string.IsNullOrEmpty(targetPath)) {
+                            using (IDLWrapper wrapper2 = new IDLWrapper(targetPath)) {
+                                tabbar.OpenNewTabOrWindow(wrapper2);
+                            }
+                        }
+                    }
+                    return;
+
+                case BII_TAGFILTER:
+                    {
+                        string txt = e.ClickedItem.Text;
+                        if (txt.IndexOf("Open Tagged Only", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            try { tabbar.OpenTaggedOnlyView(); } catch { }
+                        } else if (txt.IndexOf("Add Tags", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            try { tabbar.ShowTagsDialogForSelection(); } catch { }
+                        } else {
+                            try { tabbar.SelectTaggedInCurrentFolder(); } catch { }
+                        }
+                    }
+                    return;
+
+                case BII_GITQUICK:
+                    {
+                        string action = e.ClickedItem.Text;
+                        try {
+                            if (action.IndexOf("Open Repo", StringComparison.OrdinalIgnoreCase) >= 0) tabbar.GitOpenRepoRoot();
+                            else if (action.IndexOf("Log", StringComparison.OrdinalIgnoreCase) >= 0) tabbar.GitLog();
+                            else if (action.IndexOf("Diff", StringComparison.OrdinalIgnoreCase) >= 0) tabbar.GitDiff();
+                        } catch { }
                     }
                     return;
 
@@ -779,6 +863,53 @@ namespace QTTabBarLib {
 
                 case 5:
                     AddUserAppItems();
+                    break;
+
+                case BII_TAGFILTER:
+                    button.DropDown.Items.Clear();
+                    {
+                    var openTaggedOnly = new ToolStripMenuItem("Open Tagged Only View");
+                    var selTagged = new ToolStripMenuItem("Select Tagged in Folder");
+                    var addTags = new ToolStripMenuItem("Add Tags to Selection...");
+                        var toggleHighlight = new ToolStripMenuItem("Highlight Tagged") { Checked = TagManager.HighlightTagged, CheckOnClick = true };
+                        toggleHighlight.CheckedChanged += (s2,e2)=> { TagManager.HighlightTagged = ((ToolStripMenuItem)s2).Checked; };
+                        var toggleDim = new ToolStripMenuItem("Only Show Tagged (dim others)") { Checked = TagManager.DimUntagged, CheckOnClick = true };
+                        toggleDim.CheckedChanged += (s2,e2)=> { TagManager.DimUntagged = ((ToolStripMenuItem)s2).Checked; };
+                    button.DropDown.Items.Add(openTaggedOnly);
+                    button.DropDown.Items.Add(selTagged);
+                    button.DropDown.Items.Add(addTags);
+                        button.DropDown.Items.Add(new ToolStripSeparator());
+                        button.DropDown.Items.Add(toggleHighlight);
+                        button.DropDown.Items.Add(toggleDim);
+                    }
+                    break;
+
+                case BII_GITQUICK:
+                    button.DropDown.Items.Clear();
+                    button.DropDown.Items.Add(new ToolStripMenuItem("Open Repo Root"));
+                    button.DropDown.Items.Add(new ToolStripMenuItem("Log (last 50)"));
+                    button.DropDown.Items.Add(new ToolStripMenuItem("Diff --stat HEAD"));
+                    break;
+
+                case BII_RECENTOPENED:
+                    // Populate menu with recent opened tabs
+                    button.DropDown.Items.Clear();
+                    var entries = RecentOpenedTabsManager.GetAll();
+                    if (entries.Count == 0) {
+                        var none = new ToolStripMenuItem("none");
+                        none.Enabled = false;
+                        button.DropDown.Items.Add(none);
+                    } else {
+                        foreach (var e2 in entries) {
+                            var text = string.IsNullOrEmpty(e2.Name) ? e2.Path : e2.Name;
+                            var mi = new QMenuItem(text, MenuGenre.Navigation) {
+                                ToolTipText = e2.Path
+                            };
+                            mi.Path = e2.Path;
+                            mi.MenuItemArguments = new MenuItemArguments(e2.Path, true, 0, MenuGenre.Navigation);
+                            button.DropDown.Items.Add(mi);
+                        }
+                    }
                     break;
             }
             button.DropDown.ResumeLayout();

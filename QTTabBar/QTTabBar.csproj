@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -306,15 +306,18 @@
     <Compile Include="OptionsDialog\Options11_ButtonBar.xaml.cs">
       <DependentUpon>Options11_ButtonBar.xaml</DependentUpon>
     </Compile>
-    <Compile Include="OptionsDialog\Options12_Plugins.xaml.cs">
-      <DependentUpon>Options12_Plugins.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="OptionsDialog\Options13_Language.xaml.cs">
-      <DependentUpon>Options13_Language.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="OptionsDialog\Options14_About.xaml.cs">
-      <DependentUpon>Options14_About.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="OptionsDialog\Options12_Plugins.xaml.cs">
+      <DependentUpon>Options12_Plugins.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OptionsDialog\Options13_Language.xaml.cs">
+      <DependentUpon>Options13_Language.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OptionsDialog\Options14_About.xaml.cs">
+      <DependentUpon>Options14_About.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OptionsDialog\Options15_Sessions.xaml.cs">
+      <DependentUpon>Options15_Sessions.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OptionsDialog\Options02_Tabs.xaml.cs">
       <DependentUpon>Options02_Tabs.xaml</DependentUpon>
     </Compile>
@@ -522,6 +525,36 @@
     </Compile>
     <Compile Include="QTUtility.cs" />
     <Compile Include="QTUtility2.cs" />
+    <Compile Include="AliasManager.cs" />
+    <Compile Include="OperationLedgerManager.cs" />
+    <Compile Include="ShellZip.cs" />
+    <Compile Include="GitStatusManager.cs" />
+    <Compile Include="TimelineManager.cs" />
+    <Compile Include="SessionSnapshotManager.cs" />
+    <Compile Include="TimelineForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="OperationHistoryForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AliasesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ArchivePeekForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SevenZipCli.cs" />
+    <Compile Include="ComparisonEngine.cs" />
+    <Compile Include="CompareSplitHost.cs" />
+    <Compile Include="CompareForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CompareOverlayManager.cs" />
+    <Compile Include="TagManager.cs" />
+    <Compile Include="TagsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RecentOpenedTabsManager.cs" />
     <Compile Include="SubDirTipForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -654,18 +687,22 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="OptionsDialog\Options12_Plugins.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="OptionsDialog\Options13_Language.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="OptionsDialog\Options14_About.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
+    <Page Include="OptionsDialog\Options12_Plugins.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="OptionsDialog\Options13_Language.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="OptionsDialog\Options14_About.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="OptionsDialog\Options15_Sessions.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="OptionsDialog\Options02_Tabs.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

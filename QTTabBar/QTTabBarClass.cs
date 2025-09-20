@@ -1009,6 +1009,7 @@ namespace QTTabBarLib {
          */
         public override void CloseDW(uint dwReserved) {
             try {
+                try { TabSessionManager.SaveFor(this); } catch { }
                 /*string[] list1 = (from ITab tab in pluginServer.GetTabs()
                                  where tab.Locked
                                  select tab.Address.Path).ToArray();
@@ -1621,6 +1622,9 @@ namespace QTTabBarLib {
             tab.NavigatedTo(path, idlw.IDL, -1, false);
             tab.ToolTipText = QTUtility2.MakePathDisplayText(path, true);
             AddInsertTab(tab);
+            try {
+                RecentOpenedTabsManager.Add(path, tab.Text);
+            } catch { }
             return tab;
         }
 
@@ -3086,6 +3090,10 @@ namespace QTTabBarLib {
                         QTUtility2.log("QTTabBarClass Explorer_NavigateComplete2 buttonNavHistoryMenu.DropDown.Visible");
                         buttonNavHistoryMenu.DropDown.Close(ToolStripDropDownCloseReason.AppFocusChange);
                     }
+                    try { GitStatusManager.UpdateTabBadge(this, CurrentTab); } catch { }
+                    try { TimelineManager.RecordNavigation(CurrentTab.CurrentPath); } catch { }
+
+                    try { TabSessionManager.SaveFor(this); } catch { }
                     // 判断是否需要更新，暂时手动更新吧 by indiff
                     /*if(Config.Misc.AutoUpdate)
                     {
@@ -4547,6 +4555,10 @@ namespace QTTabBarLib {
             toolStrip = new ToolStripClasses();
             buttonBack = new ToolStripButton();
             buttonForward = new ToolStripButton();
+            // Add-ons
+            ToolStripDropDownButton buttonGitQuick = new ToolStripDropDownButton("Git");
+            ToolStripDropDownButton buttonSync = new ToolStripDropDownButton("Sync");
+            ToolStripButton buttonRestoreTabs = new ToolStripButton("Restore Tabs");
             toolStrip.SuspendLayout();
             if(!QTUtility.ImageListGlobal.Images.ContainsKey("navBack")) {
                 QTUtility.ImageListGlobal.Images.Add("navBack", Resources_Image.imgNavBack);
@@ -4559,7 +4571,7 @@ namespace QTTabBarLib {
             toolStrip.CanOverflow = false;
             toolStrip.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
             toolStrip.GripStyle = ToolStripGripStyle.Hidden;
-            toolStrip.Items.AddRange(new ToolStripItem[] { buttonBack, buttonForward, buttonNavHistoryMenu });
+            toolStrip.Items.AddRange(new ToolStripItem[] { buttonBack, buttonForward, buttonNavHistoryMenu, buttonGitQuick, buttonSync, buttonRestoreTabs });
             toolStrip.Renderer = new ToolbarRenderer();
             toolStrip.Width = 0x3f;
             toolStrip.TabStop = false;
@@ -4587,6 +4599,50 @@ namespace QTTabBarLib {
             buttonForward.Image = QTUtility.ImageListGlobal.Images["navFrwd"];
             buttonForward.Size = new Size(0x15, 0x15);
             buttonForward.Click += NavigationButtons_Click;
+
+            // Git quick actions
+            buttonGitQuick.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            buttonGitQuick.DropDownOpening += (s,e)=> {
+                buttonGitQuick.DropDownItems.Clear();
+                buttonGitQuick.DropDownItems.Add("Open Repo Root");
+                buttonGitQuick.DropDownItems.Add("Log (last 50)");
+                buttonGitQuick.DropDownItems.Add("Diff --stat HEAD");
+            };
+            buttonGitQuick.DropDownItemClicked += (s,e)=> {
+                string t = e.ClickedItem.Text;
+                if (t.StartsWith("Open")) GitOpenRepoRoot(); else if (t.StartsWith("Log")) GitLog(); else GitDiff();
+            };
+
+            // Sync differences
+            buttonSync.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            buttonSync.DropDownOpening += (s,e)=> {
+                buttonSync.DropDownItems.Clear();
+                if (CompareOverlayManager.IsActive) {
+                    buttonSync.DropDownItems.Add("Sync Added/Changed → Right");
+                    buttonSync.DropDownItems.Add("← Sync Added/Changed To Left");
+                } else {
+                    var mi = new ToolStripMenuItem("No compare context"); mi.Enabled = false; buttonSync.DropDownItems.Add(mi);
+                }
+            };
+            buttonSync.DropDownItemClicked += (s,e)=> {
+                string t = e.ClickedItem.Text;
+                try {
+                    if (t.StartsWith("Sync Added")) SyncDifferencesToRight(); else SyncDifferencesToLeft();
+                } catch { }
+            };
+
+            buttonRestoreTabs.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            buttonRestoreTabs.Click += (s,e)=> {
+                try {
+                    bool restored = RestoreTabsFromSession(true);
+                    if (!restored) {
+                        MessageBox.Show(this, "No saved tabs were found.", "Restore Tabs", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                } catch { }
+            };
+
+            // Enable/disable Git & Sync per state
+            toolStrip.LayoutCompleted += (s,e)=> UpdateGitSyncButtonsState(buttonGitQuick, buttonSync);
         }
         /**
          * 初始化已经打开的窗口
@@ -4639,6 +4695,31 @@ namespace QTTabBarLib {
 
             // Attempt to restore previous tab session for this window
             TryRestoreTabsFromSession();
+            try { SessionSnapshotManager.EnsureStarted(); } catch { }
+        }
+
+        internal bool DoFileToolsEx(int index) {
+            try {
+                // Additional copy formats: Markdown / HTML are appended after existing items
+                // Existing items count: 7 including separator, so check indexes >=7
+                if(index >= 7) {
+                    Address[] addresses; string focus;
+                    if(!TryGetSelection(out addresses, out focus, false) || addresses == null || addresses.Length == 0) return false;
+                    var sb = new System.Text.StringBuilder();
+                    bool markdown = (index == 8); // depends on exact order; we added two items: [sep], Markdown, HTML
+                    // But safer: check by item text in ButtonBar; index mapping may vary. Keep both formats.
+                    // We will treat idx==7 => Markdown, idx==8 => HTML.
+                    if(index == 7) markdown = true;
+                    foreach(var a in addresses) {
+                        string p = a.Path; string name = System.IO.Path.GetFileName(p);
+                        if(markdown) sb.Append("- [").Append(name).Append("](").Append(p).Append(")\r\n");
+                        else sb.Append("<li><a href=\"").Append(p).Append("\">").Append(name).Append("</a></li>\r\n");
+                    }
+                    QTUtility2.SetStringClipboard(sb.ToString());
+                    return true;
+                }
+            } catch { }
+            return false;
         }
 
         private static void InitializeStaticFields() {
@@ -4668,13 +4749,61 @@ namespace QTTabBarLib {
                 tsmiMergeWindows = new ToolStripMenuItem(QTUtility.ResMain[0x21]);
                 tssep_Sys1 = new ToolStripSeparator();
                 tssep_Sys2 = new ToolStripSeparator();
+                // Tools submenu
+                var tsmiTools = new ToolStripMenuItem("Tools");
+                var tsmiTimeline = new ToolStripMenuItem("Navigation Timeline");
+                tsmiTimeline.Click += (s,e)=> { try { new TimelineForm().Show(this); } catch { } };
+                var tsmiSnapshots = new ToolStripMenuItem("Snapshots");
+                tsmiSnapshots.DropDownOpening += (s,e)=> {
+                    tsmiSnapshots.DropDownItems.Clear();
+                    try {
+                        var list = SessionSnapshotManager.ListSnapshots();
+                        int c = 0; foreach (var f in list) { if (c++>=10) break; var mi = new ToolStripMenuItem(System.IO.Path.GetFileNameWithoutExtension(f)); mi.Tag = f; mi.Click += (s2,e2)=> { try { SessionSnapshotManager.RestoreToCurrent((string)((ToolStripMenuItem)s2).Tag, this); } catch { } }; tsmiSnapshots.DropDownItems.Add(mi);} }
+                    catch { }
+                };
+                var tsmiAliases = new ToolStripMenuItem("Path Aliases...");
+                tsmiAliases.Click += (s,e)=> { try { new AliasesForm(CurrentAddress).Show(this); } catch { } };
+                var tsmiOps = new ToolStripMenuItem("Operation History...");
+                tsmiOps.Click += (s,e)=> { try { new OperationHistoryForm().Show(this); } catch { } };
+                var tsmiTags = new ToolStripMenuItem("Tag Selection...");
+                tsmiTags.Click += (s,e)=> { try { Address[] addrs; string f; if (!TryGetSelection(out addrs, out f, false) || addrs==null || addrs.Length==0) return; new TagsForm(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(addrs, a=>a.Path))).Show(this); } catch { } };
+                var tsmiPeek = new ToolStripMenuItem("Peek Archive...");
+                tsmiPeek.Click += (s,e)=> {
+                    try {
+                        Address[] addrs; string f; if (!TryGetSelection(out addrs, out f, false) || addrs==null || addrs.Length==0) return;
+                        foreach (var a in addrs) { var ext = System.IO.Path.GetExtension(a.Path).ToLowerInvariant(); if (ext == ".zip") { new ArchivePeekForm(a.Path).Show(this); break; } }
+                    } catch { }
+                };
+                var tsmiCompare = new ToolStripMenuItem("Compare With...");
+                tsmiCompare.Click += (s,e)=> {
+                    try {
+                        // offer simple compare with another open tab
+                        using (var dlg = new System.Windows.Forms.Form()) {
+                            dlg.Text = "Compare With"; dlg.Width=420; dlg.Height=140; dlg.StartPosition=System.Windows.Forms.FormStartPosition.CenterParent;
+                            var combo = new System.Windows.Forms.ComboBox{Left=12,Top=12,Width=380,DropDownStyle=System.Windows.Forms.ComboBoxStyle.DropDownList};
+                            foreach (QTabItem t in tabControl1.TabPages) combo.Items.Add(t.CurrentPath);
+                            combo.SelectedIndex = combo.Items.Count>1 ? 1 : (combo.Items.Count>0?0:-1);
+                            var btn = new System.Windows.Forms.Button{Text="Compare",Left=312,Top=48,Width=80}; btn.Click += (s2,e2)=> { try { var right = combo.SelectedItem as string; if (!string.IsNullOrEmpty(right)) { new CompareSplitForm(CurrentAddress, right).Show(this); dlg.Close(); } } catch { } };
+                            dlg.Controls.Add(combo); dlg.Controls.Add(btn); dlg.ShowDialog(this);
+                        }
+                    } catch { }
+                };
+                var tsmiGit = new ToolStripMenuItem("Git Actions");
+                var tsmiGitOpen = new ToolStripMenuItem("Open Repo Root");
+                tsmiGitOpen.Click += (s,e)=> { try { var root = GitRepoRootOf(CurrentAddress); if (!string.IsNullOrEmpty(root)) OpenNewTab(root); } catch { } };
+                var tsmiGitLog = new ToolStripMenuItem("Log (last 50)");
+                tsmiGitLog.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } };
+                var tsmiGitDiff = new ToolStripMenuItem("Diff --stat HEAD");
+                tsmiGitDiff.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "diff --stat HEAD"); } catch { } };
+                tsmiGit.DropDownItems.AddRange(new ToolStripItem[]{ tsmiGitOpen, tsmiGitLog, tsmiGitDiff });
+                tsmiTools.DropDownItems.AddRange(new ToolStripItem[]{ tsmiTimeline, tsmiSnapshots, tsmiAliases, tsmiOps, tsmiTags, tsmiGit, new ToolStripSeparator(), tsmiPeek, tsmiCompare });
                 if (contextMenuSys != null)
                 {
                     contextMenuSys.SuspendLayout();
                     contextMenuSys.Items[0].Dispose();
                     contextMenuSys.Items.AddRange(new ToolStripItem[]
                     {
-                        tsmiGroups, tsmiUndoClose, tsmiLastActiv, tsmiExecuted, 
+                        tsmiGroups, tsmiUndoClose, tsmiLastActiv, tsmiExecuted, tsmiTools,
                         tssep_Sys1, tsmiBrowseFolder, tsmiCloseAllButCurrent, tsmiCloseWindow, 
                         tsmiMergeWindows, tsmiLockToolbar, tssep_Sys2, tsmiOption
                     });
@@ -5070,51 +5199,124 @@ namespace QTTabBarLib {
             return false;
         }
 
+        private static readonly HashSet<long> sRestoredWindows = new HashSet<long>();
+
+        private static readonly object sRestoredWindowsLock = new object();
+
         private void TryRestoreTabsFromSession() {
+            RestoreTabsFromSession(false);
+        }
+
+        private bool RestoreTabsFromSession(bool force) {
             try {
-                var saved = TabSessionManager.LoadForWindowOrLatest(GetExplorerHandle());
-                if(saved == null || saved.Length == 0) return;
-                var items = saved.OrderBy(s => s.Order).ToList();
-                // Close placeholder empty tab if present and we are restoring at least one tab
-                QTabItem placeholder = null;
-                if(tabControl1.TabCount == 1 && string.IsNullOrEmpty(tabControl1.SelectedTab.CurrentPath)) {
-                    placeholder = tabControl1.SelectedTab;
+                if (HideExplorer) return false;
+                IntPtr hwnd = GetExplorerHandle();
+                if (hwnd == IntPtr.Zero) return false;
+
+                long key = hwnd.ToInt64();
+                if (!force) {
+                    lock (sRestoredWindowsLock) {
+                        if (sRestoredWindows.Contains(key)) return false;
+                    }
                 }
 
-                var used = new System.Collections.Generic.HashSet<QTabItem>();
-                foreach(var s in items) {
-                    if(string.IsNullOrEmpty(s.Path)) continue;
-                    // Reuse an existing matching tab if any and not already used
-                    QTabItem match = null;
-                    foreach(QTabItem t in tabControl1.TabPages) {
-                        if(!used.Contains(t) && string.Equals(t.CurrentPath, s.Path, StringComparison.OrdinalIgnoreCase)) { match = t; break; }
+                var saved = TabSessionManager.LoadForWindowOrLatest(hwnd);
+                if (saved == null || saved.Length == 0) {
+                    if (!force) {
+                        lock (sRestoredWindowsLock) {
+                            if (!sRestoredWindows.Contains(key)) sRestoredWindows.Add(key);
+                        }
                     }
-                    if(match == null) {
-                        using(var idlw = new IDLWrapper(s.Path)) {
-                            if(idlw.Available) {
+                    return false;
+                }
+
+                var items = saved.Where(s => !string.IsNullOrEmpty(s.Path)).OrderBy(s => s.Order).ToList();
+                if (items.Count == 0) {
+                    if (!force) {
+                        lock (sRestoredWindowsLock) {
+                            if (!sRestoredWindows.Contains(key)) sRestoredWindows.Add(key);
+                        }
+                    }
+                    return false;
+                }
+
+                QTabItem placeholder = null;
+                if (tabControl1.TabCount == 1) {
+                    QTabItem single = tabControl1.SelectedTab;
+                    if (single != null) {
+                        if (IsPlaceholderTab(single)) {
+                            placeholder = single;
+                        } else {
+                            string existingPath = single.CurrentPath ?? string.Empty;
+                            string firstSaved = items[0].Path ?? string.Empty;
+                            if (string.IsNullOrEmpty(existingPath) || string.Equals(existingPath, firstSaved, StringComparison.OrdinalIgnoreCase)) {
+                                placeholder = single;
+                            }
+                        }
+                    }
+                }
+
+                var used = new HashSet<QTabItem>();
+                var created = new List<QTabItem>();
+
+                foreach (var s in items) {
+                    QTabItem match = null;
+                    foreach (QTabItem t in tabControl1.TabPages) {
+                        if (!used.Contains(t) && string.Equals(t.CurrentPath, s.Path, StringComparison.OrdinalIgnoreCase)) {
+                            match = t;
+                            break;
+                        }
+                    }
+
+                    if (match == null) {
+                        using (IDLWrapper idlw = new IDLWrapper(s.Path)) {
+                            if (idlw.Available) {
                                 OpenNewTab(idlw, false, true);
-                                // find newly added tab by path
-                                for(int i = tabControl1.TabPages.Count - 1; i >= 0; i--) {
-                                    var t = tabControl1.TabPages[i];
-                                    if(string.Equals(t.CurrentPath, s.Path, StringComparison.OrdinalIgnoreCase) && !used.Contains(t)) { match = t; break; }
+                                for (int i = tabControl1.TabPages.Count - 1; i >= 0; i--) {
+                                    QTabItem candidate = tabControl1.TabPages[i];
+                                    if (string.Equals(candidate.CurrentPath, s.Path, StringComparison.OrdinalIgnoreCase) && !used.Contains(candidate)) {
+                                        match = candidate;
+                                        created.Add(candidate);
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
-                    if(match != null) {
+
+                    if (match != null) {
                         used.Add(match);
-                        if(!string.IsNullOrEmpty(s.Name) && !string.Equals(match.Text, s.Name, StringComparison.Ordinal)) match.Text = s.Name;
+                        if (!string.IsNullOrEmpty(s.Name) && !string.Equals(match.Text, s.Name, StringComparison.Ordinal)) {
+                            match.Text = s.Name;
+                        }
                         TabSessionManager.SetOpenTime(this, match, s.OpenedAtUtc);
                     }
                 }
 
-                if(placeholder != null && tabControl1.TabPages.Contains(placeholder)) {
+                if (placeholder != null && tabControl1.TabPages.Contains(placeholder) && !used.Contains(placeholder) && created.Count > 0) {
                     CloseTab(placeholder, true);
                 }
 
-                // Persist under current handle immediately
-                TabSessionManager.SaveFor(this);
-            } catch { }
+                if (used.Count > 0) {
+                    TabSessionManager.SaveFor(this);
+                }
+
+                if (!force && used.Count > 0) {
+                    lock (sRestoredWindowsLock) {
+                        sRestoredWindows.Add(key);
+                    }
+                }
+
+                return used.Count > 0;
+            } catch { return false; }
+        }
+
+        private static bool IsPlaceholderTab(QTabItem tab) {
+            if (tab == null) return false;
+            string path = tab.CurrentPath;
+            if (string.IsNullOrEmpty(path)) return true;
+            if (path.StartsWith("::", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
 
         private void ListView_EndLabelEdit(LVITEM item) {
@@ -5124,6 +5326,62 @@ namespace QTTabBarLib {
                     HandleF5();
                 }
             }
+        }
+
+        internal void ShowTagsDialogForSelection() {
+            try {
+                Address[] addresses; string focus;
+                if(!TryGetSelection(out addresses, out focus, false) || addresses == null || addresses.Length == 0) return;
+                new TagsForm(addresses.Select(a=>a.Path).ToArray()).Show(this);
+            } catch { }
+        }
+
+        internal void SelectTaggedInCurrentFolder() {
+            try {
+                string path = CurrentAddress;
+                if (string.IsNullOrEmpty(path) || path.StartsWith("::")) return;
+                var matches = new List<Address>();
+                try {
+                    foreach (var p in Directory.GetFileSystemEntries(path)) {
+                        string tags = TagManager.GetTagSummary(p);
+                        if (!string.IsNullOrEmpty(tags)) matches.Add(new Address(p));
+                    }
+                } catch { }
+                if (matches.Count > 0) ShellBrowser.TrySetSelection(matches.ToArray(), null, true);
+            } catch { }
+        }
+
+        internal void OpenTaggedOnlyView() {
+            try {
+                string path = CurrentAddress; if (string.IsNullOrEmpty(path) || path.StartsWith("::")) return;
+                var tagged = new List<string>();
+                try { foreach (var p in Directory.GetFileSystemEntries(path)) if (!string.IsNullOrEmpty(TagManager.GetTagSummary(p))) tagged.Add(p); } catch { }
+                if (tagged.Count == 0) return;
+                string tempRoot = Path.Combine(Path.Combine(Path.GetTempPath(), "QTTabBar"), "TaggedViews");
+                Directory.CreateDirectory(tempRoot);
+                string viewDir = Path.Combine(tempRoot, DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                Directory.CreateDirectory(viewDir);
+                foreach (var p in tagged) {
+                    try {
+                        string name = Path.GetFileName(p);
+                        string lnk = Path.Combine(viewDir, name + ".lnk");
+                        CreateShortcut(lnk, p, Path.GetDirectoryName(p));
+                    } catch { }
+                }
+                OpenNewTab(viewDir, false, true);
+            } catch { }
+        }
+
+        private static void CreateShortcut(string shortcutPath, string targetPath, string workingDirectory) {
+            try {
+                Type t = Type.GetTypeFromProgID("WScript.Shell");
+                if (t == null) return; object shell = Activator.CreateInstance(t);
+                object shortcut = t.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { shortcutPath });
+                var st = shortcut.GetType();
+                st.InvokeMember("TargetPath", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { targetPath });
+                if (!string.IsNullOrEmpty(workingDirectory)) st.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { workingDirectory });
+                st.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, shortcut, null);
+            } catch { }
         }
 
         private void ListViewMonitor_ListViewChanged(object sender, EventArgs args) {
@@ -5815,6 +6073,7 @@ namespace QTTabBarLib {
         }
 
         private bool OpenNewTab(string path, bool blockSelecting = false, bool fForceNew = false) {
+            path = AliasManager.Expand(path);
             using(IDLWrapper wrapper = new IDLWrapper(path)) {
                 if(wrapper.Available) {
                     return OpenNewTab(wrapper, blockSelecting, fForceNew);
@@ -6404,6 +6663,7 @@ namespace QTTabBarLib {
                 using(RegistryKey key = Registry.CurrentUser.CreateSubKey(RegConst.Root)) {
                     key.SetValue("BreakTabBar", BandHasBreak() ? 1 : 0);
                 }
+                try { TabSessionManager.SaveFor(this); } catch { }
             }
         }
         // 显示目录树
@@ -6994,6 +7254,23 @@ namespace QTTabBarLib {
         }
 
         private void tabControl1_TabIconMouseDown(object sender, QTabCancelEventArgs e) {
+            try {
+                var tab = e.TabPage; if (tab == null) return;
+                string path = tab.CurrentPath; if (!string.IsNullOrEmpty(path)) {
+                    var root = GitRepoRootOfPath(path);
+                    if (!string.IsNullOrEmpty(root)) {
+                        // Show small git quick menu at mouse position
+                        var menu = new ContextMenuStrip();
+                        var miRoot = new ToolStripMenuItem("Git: Open Repo Root"); miRoot.Click += (s,ev)=> { try { OpenNewTab(root); } catch { } };
+                        var miLog = new ToolStripMenuItem("Git: Log (last 50)"); miLog.Click += (s,ev)=> { try { RunGitCmd(path, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } };
+                        var miDiff = new ToolStripMenuItem("Git: Diff --stat HEAD"); miDiff.Click += (s,ev)=> { try { RunGitCmd(path, "diff --stat HEAD"); } catch { } };
+                        menu.Items.Add(miRoot); menu.Items.Add(miLog); menu.Items.Add(miDiff);
+                        menu.Show(MousePosition);
+                        return;
+                    }
+                }
+            } catch { }
+            // Fallback to existing behavior
             ShowSubdirTip_Tab(e.TabPage, e.Action == TabControlAction.Selecting, e.TabPageIndex, false, e.Cancel);
         }
 
@@ -7416,21 +7693,21 @@ namespace QTTabBarLib {
 
         #region 标签栏事件区
         public RebarController rebarController;
-        protected string CurrentAddress;
-        protected QTabItem CurrentTab;
-        protected int BandHeight;
+        private string CurrentAddress;
+        private QTabItem CurrentTab;
+        private int BandHeight;
         public static int BandHeightSpace = 3;
-        protected ShellBrowserEx ShellBrowser;
+        private ShellBrowserEx ShellBrowser;
         
-        protected List<QTabItem> lstActivatedTabs = new List<QTabItem>(0x10);
-        protected IntPtr ExplorerHandle;
-        protected Dictionary<int, ITravelLogEntry> LogEntryDic = new Dictionary<int, ITravelLogEntry>();
-        protected AbstractListView listView = new AbstractListView();
-        protected ListViewMonitor listViewManager;
+        private List<QTabItem> lstActivatedTabs = new List<QTabItem>(0x10);
+        private IntPtr ExplorerHandle;
+        private Dictionary<int, ITravelLogEntry> LogEntryDic = new Dictionary<int, ITravelLogEntry>();
+        private AbstractListView listView = new AbstractListView();
+        private ListViewMonitor listViewManager;
 
-        protected List<ToolStripItem> lstPluginMenuItems_Sys;
-        protected List<ToolStripItem> lstPluginMenuItems_Tab;
-        protected ITravelLogStg TravelLog;
+        private List<ToolStripItem> lstPluginMenuItems_Sys;
+        private List<ToolStripItem> lstPluginMenuItems_Tab;
+        private ITravelLogStg TravelLog;
         public QTTabBarClass.PluginServer pluginServer { get; set; }
 
         public bool HideExplorer
@@ -7444,30 +7721,30 @@ namespace QTTabBarLib {
         // Expose Explorer handle for internal helpers
         internal IntPtr GetExplorerHandle() { return ExplorerHandle; }
 
-        protected bool NavigatedByCode;
+        private bool NavigatedByCode;
         
-        protected bool NowTabsAddingRemoving;
-        protected bool NowInTravelLog;
-        protected bool NowModalDialogShown;
-        protected bool NowOpenedByGroupOpener;
-        protected bool NowTabCloned;
-        protected bool NowTabCreated;
-        protected bool NowTabDragging;
-        protected bool NowTopMost;
-        protected bool fNavigatedByTabSelection;
-        protected int CurrentTravelLogIndex;
-        protected int navBtnsFlag;
+        private bool NowTabsAddingRemoving;
+        private bool NowInTravelLog;
+        private bool NowModalDialogShown;
+        private bool NowOpenedByGroupOpener;
+        private bool NowTabCloned;
+        private bool NowTabCreated;
+        private bool NowTabDragging;
+        private bool NowTopMost;
+        private bool fNavigatedByTabSelection;
+        private int CurrentTravelLogIndex;
+        private int navBtnsFlag;
         // TODO add fields
-        protected ToolStripClasses toolStrip;
-        protected ToolStripButton buttonBack;
-        protected ToolStripButton buttonForward;
-        protected ToolStripDropDownButton buttonNavHistoryMenu;
-        protected IntPtr TravelToolBarHandle;
+        private ToolStripClasses toolStrip;
+        private ToolStripButton buttonBack;
+        private ToolStripButton buttonForward;
+        private ToolStripDropDownButton buttonNavHistoryMenu;
+        private IntPtr TravelToolBarHandle;
 
         /**
          * 添加到历史目录
          */
-        protected void AddToHistory(QTabItem closingTab)
+        private void AddToHistory(QTabItem closingTab)
         {
             string currentPath = closingTab.CurrentPath;
             if ((Config.Misc.KeepHistory && !string.IsNullOrEmpty(currentPath)) && !IsSearchResultFolder(currentPath))
@@ -7491,7 +7768,7 @@ namespace QTTabBarLib {
         }
 
         // 关闭标签， 如果锁定则不关闭
-        protected bool CloseTab(QTabItem closingTab, bool fCritical, bool fSkipSync = false)
+        private bool CloseTab(QTabItem closingTab, bool fCritical, bool fSkipSync = false)
         {
             if (closingTab == null)
             {
@@ -7571,7 +7848,7 @@ namespace QTTabBarLib {
             return true;
         }
 
-        protected void CloseTabs(IEnumerable<QTabItem> tabs, bool fCritical = false)
+        private void CloseTabs(IEnumerable<QTabItem> tabs, bool fCritical = false)
         {
             tabControl1.SetRedraw(false);
             bool closeCurrent = false;
@@ -7598,12 +7875,12 @@ namespace QTTabBarLib {
         }
 
         // TODO: Optional params
-        protected bool CloseTab(QTabItem closingTab)
+        private bool CloseTab(QTabItem closingTab)
         {
             return ((tabControl1.TabCount > 1) && CloseTab(closingTab, false));
         }
 
-        protected void ShowMessageNavCanceled(string failedPath, bool fModal)
+        private void ShowMessageNavCanceled(string failedPath, bool fModal)
         {
             QTUtility2.log("QTTabBarClass ShowMessageNavCanceled: " + failedPath);
             QTUtility2.MakeErrorLog(null, string.Format("Failed navigation: {0}", failedPath));
@@ -7618,7 +7895,7 @@ namespace QTTabBarLib {
             }
         }
 
-        protected void CancelFailedTabChanging(string newPath)
+        private void CancelFailedTabChanging(string newPath)
         {
             if (!CloseTab(tabControl1.SelectedTab, true))
             {
@@ -7658,7 +7935,7 @@ namespace QTTabBarLib {
             }
         }
 
-        protected bool NavigateToPastSpecialDir(int hash)
+        private bool NavigateToPastSpecialDir(int hash)
         {
             IEnumTravelLogEntry ppenum = null;
             try
@@ -7716,7 +7993,7 @@ namespace QTTabBarLib {
           在 QTTabBarLib.ShellBrowserEx.Navigate(IDLWrapper idlw, SBSP flags)
           在 QTTabBarLib.QTTabBarClass.tabControl1_SelectedIndexChanged(Object sender, EventArgs e)
         */
-        protected void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
+        private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
         {
             QTUtility2.log("tabControl1_SelectedIndexChanged" );
             QTabItem selectedTab = tabControl1.SelectedTab;
@@ -7801,7 +8078,7 @@ namespace QTTabBarLib {
             try { TabSessionManager.SaveFor(this); } catch { }
         }
 
-        protected void SyncTravelState()
+        private void SyncTravelState()
         {
             if (CurrentTab != null)
             {
@@ -7815,7 +8092,76 @@ namespace QTTabBarLib {
                 TryCallButtonBar(bbar => bbar.RefreshButtons());
                 QTabItem.CheckSubTexts(tabControl1);
                 SyncToolbarTravelButton();
+                try { OperationLedgerManager.Watch(CurrentTab.CurrentPath); } catch { }
+                try { UpdateTagBadgeOnTab(); } catch { }
+                try { UpdateGitSyncButtonsState(); } catch { }
             }
+        }
+
+        private void UpdateGitSyncButtonsState(ToolStripDropDownButton gitBtnOverride = null, ToolStripDropDownButton syncBtnOverride = null) {
+            var gitBtn = gitBtnOverride;
+            var syncBtn = syncBtnOverride;
+            if (gitBtn == null || syncBtn == null) {
+                // find buttons by text
+                foreach (ToolStripItem it in toolStrip.Items) {
+                    var dd = it as ToolStripDropDownButton; if (dd == null) continue;
+                    if (gitBtn == null && string.Equals(dd.Text, "Git", StringComparison.OrdinalIgnoreCase)) gitBtn = dd;
+                    if (syncBtn == null && string.Equals(dd.Text, "Sync", StringComparison.OrdinalIgnoreCase)) syncBtn = dd;
+                }
+            }
+            if (gitBtn != null) gitBtn.Enabled = GitRepoRootOf(CurrentAddress) != null;
+            if (syncBtn != null) syncBtn.Enabled = CompareOverlayManager.IsActive;
+        }
+
+        private void SyncDifferencesToRight() {
+            try {
+                if (!CompareOverlayManager.IsActive) return;
+                var left = CompareOverlayManager.LeftPath; var right = CompareOverlayManager.RightPath;
+                foreach (var name in CompareOverlayManager.Removed) CopyOne(left, right, name);
+                foreach (var name in CompareOverlayManager.Changed) CopyOne(left, right, name);
+            } catch { }
+        }
+        private void SyncDifferencesToLeft() {
+            try {
+                if (!CompareOverlayManager.IsActive) return;
+                var left = CompareOverlayManager.LeftPath; var right = CompareOverlayManager.RightPath;
+                foreach (var name in CompareOverlayManager.Added) CopyOne(right, left, name);
+                foreach (var name in CompareOverlayManager.Changed) CopyOne(right, left, name);
+            } catch { }
+        }
+        private static void CopyOne(string srcFolder, string dstFolder, string name) {
+            try { var src = System.IO.Path.Combine(srcFolder, name); var dst = System.IO.Path.Combine(dstFolder, name); System.IO.Directory.CreateDirectory(dstFolder); if (System.IO.File.Exists(src)) System.IO.File.Copy(src, dst, true); } catch { }
+        }
+
+        private void UpdateTagBadgeOnTab() {
+            string path = CurrentAddress; if (string.IsNullOrEmpty(path)) return;
+            bool anyTagged = false;
+            try { foreach (var p in System.IO.Directory.GetFileSystemEntries(path)) { if (!string.IsNullOrEmpty(TagManager.GetTagSummary(p))) { anyTagged = true; break; } } } catch { }
+            CurrentTab.Underline = anyTagged;
+        }
+
+        internal void GitOpenRepoRoot() {
+            try { var root = GitRepoRootOf(CurrentAddress); if (!string.IsNullOrEmpty(root)) OpenNewTab(root); } catch { }
+        }
+
+        internal void GitLog() { try { RunGitCmd(CurrentAddress, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } }
+        internal void GitDiff() { try { RunGitCmd(CurrentAddress, "diff --stat HEAD"); } catch { } }
+
+        private static string GitRepoRootOf(string path) {
+            try { return typeof(GitStatusManager).GetMethod("FindGitRoot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, new object[]{ path }) as string; } catch { return null; }
+        }
+        private static string GitRepoRootOfPath(string path) { return GitRepoRootOf(path); }
+
+        private static void RunGitCmd(string path, string args) {
+            try {
+                string root = GitRepoRootOf(path) ?? path;
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                    FileName = "cmd.exe",
+                    Arguments = "/k git " + args,
+                    WorkingDirectory = root,
+                    UseShellExecute = true
+                });
+            } catch { }
         }
 
         private void SyncToolbarTravelButton()
@@ -7832,7 +8178,7 @@ namespace QTTabBarLib {
             }
         }
 
-        protected bool IsSpecialFolderNeedsToTravel(string path)
+        private bool IsSpecialFolderNeedsToTravel(string path)
         {
             int index = path.IndexOf("*?*?*");
             if (index != -1)
@@ -7858,13 +8204,13 @@ namespace QTTabBarLib {
             return path.PathStartsWith(QTUtility.IsXP ? QTUtility.ResMisc[2] : QTUtility.PATH_SEARCHFOLDER);
         }
 
-        protected void tabControl1_RowCountChanged(object sender, QEventArgs e)
+        private void tabControl1_RowCountChanged(object sender, QEventArgs e)
         {
             SetBarRows(e.RowCount);
         }
 
 
-        protected void SetBarRows(int count)
+        private void SetBarRows(int count)
         {
             // QTUtility2.log("QTTabBarClass SetBarRows");
             // BandHeight = (count * (Config.Skin.TabHeight - 3 )) ;
@@ -7893,7 +8239,7 @@ System.NullReferenceException: 未将对象引用设置到对象的实例。
             }
         }
 
-        protected void tabControl1_Deselecting(object sender, QTabCancelEventArgs e)
+        private void tabControl1_Deselecting(object sender, QTabCancelEventArgs e)
         {
             if (e.TabPageIndex != -1)
             {
@@ -7904,7 +8250,7 @@ System.NullReferenceException: 未将对象引用设置到对象的实例。
         /**
          * 保存选中项
          */
-        protected void SaveSelectedItems(QTabItem tab)
+        private void SaveSelectedItems(QTabItem tab)
         {
             Address[] addressArray;
             string str;
@@ -7921,7 +8267,7 @@ System.NullReferenceException: 未将对象引用设置到对象的实例。
         }
 
         
-        protected void tabControl1_Selecting(object sender, QTabCancelEventArgs e)
+        private void tabControl1_Selecting(object sender, QTabCancelEventArgs e)
         {
             if (NowTabsAddingRemoving)
             {
@@ -8028,3 +8374,5 @@ System.NullReferenceException: 未将对象引用设置到对象的实例。
         #endregion
     }
 }
+
+

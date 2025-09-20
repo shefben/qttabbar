@@ -643,7 +643,7 @@ namespace BandObjectLib {
 
     internal class Util2
     {
-        private const bool ENABLE_LOGGER = false;
+        private static readonly bool ENABLE_LOGGER = false;
 
 
         public static void bandLog(string optional)
@@ -679,8 +679,7 @@ namespace BandObjectLib {
             }
 
             Process process = Process.GetCurrentProcess();
-            var cThreadId = Thread.CurrentThread.ManagedThreadId;
-            var currentThreadId = AppDomain.GetCurrentThreadId();
+            int managedThreadId = Thread.CurrentThread.ManagedThreadId;
 
             string path = Path.Combine(appdataQT, "bandLog.log");
             var formatLogLine = new StringBuilder();
@@ -694,18 +693,9 @@ namespace BandObjectLib {
                     .Append(" PID:")
                     .Append(process.Id);
             }
-            if (cThreadId != null)
-            {
-                formatLogLine
-                    .Append(" TID:")
-                    .Append(cThreadId);
-            }
-            else if (currentThreadId != null)
-            {
-                formatLogLine
-                    .Append(" TID:")
-                    .Append(currentThreadId);
-            }
+            formatLogLine
+                .Append(" TID:")
+                .Append(managedThreadId);
             formatLogLine
                 .Append(" ")
                 .Append(DateTime.Now.ToString())

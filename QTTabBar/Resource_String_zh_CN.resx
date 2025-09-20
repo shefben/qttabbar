@@ -121,7 +121,7 @@
     <value>indiff</value>
   </data>
   <data name="ButtonBar_BtnName" xml:space="preserve">
-    <value>分隔线;后退;前进;标签组;最近关闭;应用程序;新窗口;复制标签;锁定;复制工具;置顶;关标签;关其他;关窗口;关左侧;关右侧;上移;重载;搜索;半透明;搜索框;选项</value>
+    <value>分隔线;后退;前进;标签组;最近关闭;应用程序;新窗口;复制标签;锁定;复制工具;置顶;关标签;关其他;关窗口;关左侧;关右侧;上移;重载;搜索;半透明;搜索框;选项;最近打开的标签</value>
   </data>
   <data name="ButtonBar_Misc" xml:space="preserve">
     <value>路径;名称;当前文件夹路径;当前文件夹名称;MD5;个项目;所有打开标签路径</value>
@@ -226,7 +226,7 @@
     <value>新增标签组;标签组名:;加入所有标签</value>
   </data>
   <data name="TabBar_Option_Genre" xml:space="preserve">
-    <value>窗口行为;标签行为;调整工具;预览提示;常规选项;标签外观;鼠标操作;快捷操作;分组操作;自定应用;按钮选项;插件管理;语言配置;关于信息</value>
+    <value>窗口行为;标签行为;调整工具;预览提示;常规选项;标签外观;鼠标操作;快捷操作;分组操作;自定应用;按钮选项;插件管理;语言配置;Sessions;关于信息</value>
   </data>
   <data name="TaskBar_Menu" xml:space="preserve">
     <value>任务栏(&amp;T);桌面(&amp;D);锁定项目(&amp;L);显示标题背景(&amp;B);单击显示菜单(&amp;O);启用程序快捷键(&amp;A)</value>
@@ -245,5 +245,8 @@
   </data>
   <data name="Version_QTTabBar" xml:space="preserve">
     <value>DevBuild: 2022/8/15 19:01:42 (2.0.50727.9164)</value>
+  </data>
+  <data name="Options_Page15_Sessions" xml:space="preserve">
+    <value>Manage saved tab sessions.;Select a session and choose Open to launch it in a new Explorer window.;Open in new window;Refresh;No saved sessions were found.;Unable to open the selected session.</value>
   </data>
 </root>

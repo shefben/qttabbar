@@ -1,4 +1,4 @@
-﻿//    This file is part of QTTabBar, a shell extension for Microsoft
+//    This file is part of QTTabBar, a shell extension for Microsoft
 //    Windows Explorer.
 //    Copyright (C) 2007-2021  Quizo, Paul Accisano
 //
@@ -169,21 +169,22 @@ namespace QTTabBarLib {
 
              //   QTUtility2.log("set title end");           
                 int i = 0;
-                tabbedPanel.ItemsSource = new OptionsDialogTab[] {
-                    new Options01_Window        { Index = i++},
-                    new Options02_Tabs          { Index = i++},
-                    new Options03_Tweaks        { Index = i++},
-                    new Options04_Tooltips      { Index = i++},
-                    new Options05_General       { Index = i++},
-                    new Options06_Appearance    { Index = i++},
-                    new Options07_Mouse         { Index = i++},
-                    new Options08_Keys          { Index = i++},
-                    new Options09_Groups        { Index = i++}, // can not use dll
-                    new Options10_Apps          { Index = i++},
-                    new Options11_ButtonBar     { Index = i++},
-                    new Options12_Plugins       { Index = i++},
-                    new Options13_Language      { Index = i++},
-                    new Options14_About         { Index = i}
+                tabbedPanel.ItemsSource = new OptionsDialogTab[] {
+                    new Options01_Window        { Index = i++},
+                    new Options02_Tabs          { Index = i++},
+                    new Options03_Tweaks        { Index = i++},
+                    new Options04_Tooltips      { Index = i++},
+                    new Options05_General       { Index = i++},
+                    new Options06_Appearance    { Index = i++},
+                    new Options07_Mouse         { Index = i++},
+                    new Options08_Keys          { Index = i++},
+                    new Options09_Groups        { Index = i++}, // can not use dll
+                    new Options10_Apps          { Index = i++},
+                    new Options11_ButtonBar     { Index = i++},
+                    new Options12_Plugins       { Index = i++},
+                    new Options13_Language      { Index = i++},
+                    new Options15_Sessions      { Index = i++},
+                    new Options14_About         { Index = i}
                 };
 
                // QTUtility2.log("tabbedPanel.ItemsSource end");    
