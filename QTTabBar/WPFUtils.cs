@@ -147,7 +147,7 @@ namespace QTTabBarLib {
             ((Run)d).Text = (string)e.NewValue;
         }
 
-        public string Text {
+        public new string Text {
             get { return (string)GetValue(TextProperty); }
             set { SetValue(TextProperty, value); }
         }
