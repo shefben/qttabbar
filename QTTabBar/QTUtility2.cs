@@ -364,7 +364,8 @@ namespace QTTabBarLib {
             DateTime now = DateTime.Now;
             lock (dictTime)
             {
-                if (dictTime.TryGetValue(currentThreadId, out DateTime previous))
+                DateTime previous;
+                if (dictTime.TryGetValue(currentThreadId, out previous))
                 {
                     useTime = (now - previous).TotalMilliseconds.ToString(CultureInfo.InvariantCulture);
                 }
