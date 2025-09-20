@@ -273,15 +273,15 @@ namespace QTTabBarLib {
             System.Reflection.PropertyInfo property;
             if (TryGetSettingProperty(setting, out category, out property))
             {
-                object value = property.GetValue(category);
+                object value = property.GetValue(category, null);
                 if (property.PropertyType == typeof(bool))
                 {
-                    return value is bool boolValue && boolValue;
+                    return value != null && (bool)value;
                 }
 
                 if (property.PropertyType == typeof(int))
                 {
-                    return value is int intValue && intValue != 0;
+                    return value != null && ((int)value) != 0;
                 }
 
                 if (property.PropertyType.IsEnum && value != null)
@@ -299,7 +299,7 @@ namespace QTTabBarLib {
             System.Reflection.PropertyInfo property;
             if (TryGetSettingProperty(setting, out category, out property))
             {
-                object value = property.GetValue(category);
+                object value = property.GetValue(category, null);
                 if (value == null)
                 {
                     return 0;
@@ -368,7 +368,7 @@ namespace QTTabBarLib {
                 convertedValue = System.Convert.ChangeType(value, targetType);
             }
 
-            property.SetValue(category, convertedValue);
+            property.SetValue(category, convertedValue, null);
         }
 
 
