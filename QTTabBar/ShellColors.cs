@@ -184,62 +184,44 @@ namespace QTTabBarLib
           public  Color MenuSelection = Color.FromArgb(217, 217, 217);
         }
 
-        private class Windows10Dark : ShellColors.ShellColorSet
+        private class Windows10Dark : ShellColorSet
         {
-          public  Color Default = Color.Black;
-
-          public  Color TreeViewBack = Color.FromArgb(25, 25, 25);
-
-          public  Color Light = Color.FromArgb(43, 43, 43);
-
-          public  Color Text = Color.White;
-
-          public  Color Border = Color.FromArgb(83, 83, 83);
-
-          public  Color Disabled = Color.FromArgb(140, 140, 140);
-
-          public  Color Separator = Color.FromArgb(140, 140, 140);
-
-          public  Color Tab = Color.FromArgb(217, 217, 217);
-
-          public  Color TextShadow = Color.Gray;
-
-          public  Color ViewBack = Color.FromArgb(32, 32, 32);
-
-          public  Color ViewSelection = Color.FromArgb(98, 98, 98);
-
-          public  Color ViewSelectionInactive = Color.FromArgb(51, 51, 51);
-
-          public  Color ViewSelectionAndFocused = Color.FromArgb(119, 119, 119);
-
-          public  Color ViewSelectionAndHilite = Color.FromArgb(119, 119, 119);
-
-          public  Color ViewSelectionAndHiliteInactive = Color.FromArgb(119, 119, 119);
-
-          public  Color ViewHilite = Color.FromArgb(77, 77, 77);
-
-          public  Color ViewHeaderHilite = Color.FromArgb(67, 67, 67);
-
-          public  Color Option = Color.FromArgb(44, 44, 44);
-
-          public  Color MenuSelection = Color.FromArgb(65, 65, 65);
+            public Windows10Dark()
+            {
+                Default = Color.Black;
+                TreeViewBack = Color.FromArgb(25, 25, 25);
+                Light = Color.FromArgb(43, 43, 43);
+                Text = Color.White;
+                Border = Color.FromArgb(83, 83, 83);
+                Disabled = Color.FromArgb(140, 140, 140);
+                Separator = Color.FromArgb(140, 140, 140);
+                Tab = Color.FromArgb(217, 217, 217);
+                TextShadow = Color.Gray;
+                ViewBack = Color.FromArgb(32, 32, 32);
+                ViewSelection = Color.FromArgb(98, 98, 98);
+                ViewSelectionInactive = Color.FromArgb(51, 51, 51);
+                ViewSelectionAndFocused = Color.FromArgb(119, 119, 119);
+                ViewSelectionAndHilite = Color.FromArgb(119, 119, 119);
+                ViewSelectionAndHiliteInactive = Color.FromArgb(119, 119, 119);
+                ViewHilite = Color.FromArgb(77, 77, 77);
+                ViewHeaderHilite = Color.FromArgb(67, 67, 67);
+                Option = Color.FromArgb(44, 44, 44);
+                MenuSelection = Color.FromArgb(65, 65, 65);
+            }
         }
 
-        private class Windows11Dark : ShellColors.Windows10Dark
+        private class Windows11Dark : Windows10Dark
         {
-          public  Color Default  = Color.FromArgb(30, 32, 35);
-
-          public  Color TreeViewBack = Color.FromArgb(25, 25, 25);
-
-          public  Color Light = Color.FromArgb(44, 44, 44);
-
-          public  Color Border = Color.FromArgb(62, 62, 62);
-
-          public  Color Separator = Color.FromArgb(62, 62, 62);
-
-          public  Color Tab = Color.FromArgb(169, 169, 169);
-
-          public  Color MenuSelection = Color.FromArgb(51, 51, 51);
+            public Windows11Dark()
+            {
+                Default = Color.FromArgb(30, 32, 35);
+                TreeViewBack = Color.FromArgb(25, 25, 25);
+                Light = Color.FromArgb(44, 44, 44);
+                Border = Color.FromArgb(62, 62, 62);
+                Separator = Color.FromArgb(62, 62, 62);
+                Tab = Color.FromArgb(169, 169, 169);
+                MenuSelection = Color.FromArgb(51, 51, 51);
+            }
         }
     }
 

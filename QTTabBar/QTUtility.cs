@@ -42,12 +42,12 @@ using System.Text;
 namespace QTTabBarLib {
     internal static class QTUtility {
         // 1.5.6.1  edit this 
-        internal static readonly Version BetaRevision = new Version(1, 0); // Ö÷°æ±¾ beta  ´Î°æ±¾ alpha
+        internal static readonly Version BetaRevision = new Version(1, 0); // æ±¾ beta  Î°æ±¾ alpha
         internal static readonly Version CurrentVersion = new Version(1, 5, 6, 0);
         internal static readonly string BuildVerion = "build03";
         internal const int FIRST_MOUSE_ONLY_ACTION = 1000;
         internal static readonly string REG_PERSONALIZE = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
-        // ¿ì½İ¼üÆôÓÃ±êÊ¶
+        // İ¼Ã±Ê¶
         internal const int FLAG_KEYENABLED = 0x100000;
         internal const string IMAGEKEY_FOLDER = "folder";
         internal const string IMAGEKEY_MYNETWORK = "mynetwork";
@@ -77,7 +77,7 @@ namespace QTTabBarLib {
         internal const string REGUSER = RegConst.Root;
         internal static readonly char[] SEPARATOR_CHAR = new char[] { ';' };
         internal const string SEPARATOR_PATH_HASH_SESSION = "*?*?*";
-		// ÊÇ·ñÎªµ÷ÊÔ×´Ì¬£¿
+		// Ç·Îª×´Ì¬
         internal const bool NOW_DEBUGGING =
 #if DEBUG
             true;
@@ -105,7 +105,7 @@ namespace QTTabBarLib {
         internal static Dictionary<string, string[]> TextResourcesDic;
         internal static byte WindowAlpha = 0xff;
 
-        // ÊÇ·ñÎª°µºÚÄ£Ê½
+        // Ç·ÎªÄ£Ê½
         internal static bool InNightMode;
 
         // {
@@ -114,12 +114,12 @@ namespace QTTabBarLib {
         // }
 
 
-        ///////////////////////// ĞÂÔö by indiff ////////////////////////////////////
+        /////////////////////////  by indiff ////////////////////////////////////
         internal static bool SingleClickMode { get; private set; }
 
         internal static bool ShowInfoTip { get; private set; }
         /**
-         * Ë¢ĞÂ×´Ì¬
+         * Ë¢×´Ì¬
          */
         public static void RefreshShellStateValues()
         {
@@ -158,12 +158,12 @@ namespace QTTabBarLib {
             //     QTUtility2.MakeErrorLog(ex, "QTUtility.RefreshShellStateValues" );
             // }
         }
-        ///////////////////////// ĞÂÔö by indiff ////////////////////////////////////
+        /////////////////////////  by indiff ////////////////////////////////////
 
 
 
         /// <summary>
-        /// Ö»Ö´ĞĞÒ»´Î
+        /// Ö»Ö´Ò»
         /// </summary>
         static QTUtility() {
             // I'm tempted to just return for everything except "explorer"
@@ -192,27 +192,27 @@ namespace QTTabBarLib {
 
                 // Load the config
                 ConfigManager.Initialize();
-                QTUtility2.log("QTUtility ¼ÓÔØÅäÖÃ");
+                QTUtility2.log("QTUtility ");
                 
                 // Initialize the instance manager
                 InstanceManager.Initialize();
-                QTUtility2.log("QTUtility ³õÊ¼»¯InstanceManager");
+                QTUtility2.log("QTUtility Ê¼InstanceManager");
 
                 // Create and enable the API hooks
                 HookLibManager.Initialize();
-                QTUtility2.log("QTUtility ´´½¨²¢ÇÒÆôÓÃ API hooks");
+                QTUtility2.log("QTUtility  API hooks");
 
                 // Create the global imagelist
                 ImageListGlobal = new ImageList { ColorDepth = ColorDepth.Depth32Bit };
                 ImageListGlobal.Images.Add("folder", GetIcon(string.Empty, false));
-                QTUtility2.log("QTUtility ´´½¨È«¾ÖÎÄ¼ş¼ĞÍ¼Æ¬ÁĞ±í");
+                QTUtility2.log("QTUtility È«Ä¼Í¼Æ¬Ğ±");
 
                 // Load groups/apps
                 GroupsManager.LoadGroups();
-                QTUtility2.log("QTUtility ¼ÓÔØ·Ö×éÍê³É");
+                QTUtility2.log("QTUtility Ø·");
                 
                 AppsManager.LoadApps();
-                QTUtility2.log("QTUtility ´´½¨È«¾ÖÎÄ¼ş¼ĞÍ¼Æ¬ÁĞ±í");
+                QTUtility2.log("QTUtility È«Ä¼Í¼Æ¬Ğ±");
 
                 if(Config.Lang.UseLangFile && File.Exists(Config.Lang.LangFile)) {
                     TextResourcesDic = ReadLanguageFile(Config.Lang.LangFile);
@@ -248,8 +248,8 @@ namespace QTTabBarLib {
 
                
 
-                // ÅäÖÃ²»²¶»ñ¿ØÖÆÃæ°å
-                /*QTUtility2.log("QTUtility ¼ÓÔØºöÂÔµÄÂ·¾¶ ¿ØÖÆÃæ°å ÍøÂçÁ¬½Ó");
+                // Ã²
+                /*QTUtility2.log("QTUtility ØºÔµÂ·  ");
                 string[] theNoCaptures = { "::{26EE0668-A00A-44D7-9371-BEB064C98683}",
                                            "::{26EE0668-A00A-44D7-9371-BEB064C98683}\0",
                                            "::{7007ACC7-3202-11D1-AAD2-00805FC1270E}" };
@@ -266,33 +266,33 @@ namespace QTTabBarLib {
                 NoCapturePathsList.Add("::{26EE0668-A00A-44D7-9371-BEB064C98683}");
                 NoCapturePathsList.Add("::{26EE0668-A00A-44D7-9371-BEB064C98683}\0");
 
-                NoCapturePathsList.Add("::{7007ACC7-3202-11D1-AAD2-00805FC1270E}");// ÍøÂçÁ¬½Ó
+                NoCapturePathsList.Add("::{7007ACC7-3202-11D1-AAD2-00805FC1270E}");// 
                 */
 
-                // ¿ØÖÆÃæ°å ::{26EE0668-A00A-44D7-9371-BEB064C98683} ::{26EE0668-A00A-44D7-9371-BEB064C98683}\0
+                //  ::{26EE0668-A00A-44D7-9371-BEB064C98683} ::{26EE0668-A00A-44D7-9371-BEB064C98683}\0
               
-               // NoCapturePathsList.Add("::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"); // ÎÒµÄµçÄÔ
-              //  NoCapturePathsList.Add("::{21EC2020-3AEA-1069-A2DD-08002B30309D}"); // ËùÓĞ¿ØÖÆÃæ°å
+               // NoCapturePathsList.Add("::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"); // ÒµÄµ
+              //  NoCapturePathsList.Add("::{21EC2020-3AEA-1069-A2DD-08002B30309D}"); // Ğ¿
                // NoCapturePathsList.Add("::{26EE0668-A00A-44D7-9371-BEB064C98683}\\0\\::{ED834ED6-4B5A-4BFE-8F11-A626DCB6A921}");
                 
-                // »ØÊÕÕ¾      NoCapturePathsList.Add("::{645FF040-5081-101B-9F08-00AA002F954E}");
+                // Õ¾      NoCapturePathsList.Add("::{645FF040-5081-101B-9F08-00AA002F954E}");
                 /*
-                                               »ØÊÕÕ¾ ¨C {645FF040-5081-101B-9F08-00AA002F954E}
-                               ¿ØÖÆÃæ°å ¨C {21EC2020-3AEA-1069-A2DD-08002B30309D}
-                               ÔËĞĞ ¨C {2559A1F3-21D7-11D4-BDAF-00C04F60B9F0}
-                               ËÑË÷ ¨C {2559A1F0-21D7-11D4-BDAF-00C04F60B9F0}
-                               Internet Explorer ¨C {871C5380-42A0-1069-A2EA-08002B30309D}
-                               ¹ÜÀí¹¤¾ß ¨C {D20EA4E1-3957-11D2-A40B-0C5020524153}
-                               ÍøÂçÁ¬½Ó ¨C {7007ACC7-3202-11D1-AAD2-00805FC1270E}
-                               ´òÓ¡»úºÍ´«Õæ ¨C {2227A280-3AEA-1069-A2DE-08002B30309D}
+                                               Õ¾ C {645FF040-5081-101B-9F08-00AA002F954E}
+                                C {21EC2020-3AEA-1069-A2DD-08002B30309D}
+                                C {2559A1F3-21D7-11D4-BDAF-00C04F60B9F0}
+                                C {2559A1F0-21D7-11D4-BDAF-00C04F60B9F0}
+                               Internet Explorer C {871C5380-42A0-1069-A2EA-08002B30309D}
+                                C {D20EA4E1-3957-11D2-A40B-0C5020524153}
+                                C {7007ACC7-3202-11D1-AAD2-00805FC1270E}
+                               Ó¡Í´ C {2227A280-3AEA-1069-A2DE-08002B30309D}
                                                */
-                // ÅäÖÃ²»²¶»ñ¿ØÖÆÃæ°å
+                // Ã²
                 GetShellClickMode();
                 QTUtility2.log("QTUtility Get Shell Click Mode");
 
                 // Initialize plugins
                 PluginManager.Initialize();
-                QTUtility2.log("QTUtility ¼ÓÔØËùÓĞ²å¼ş");
+                QTUtility2.log("QTUtility Ğ²");
             }
             catch(Exception exception) {
                 // TODO: Any errors here would be very serious.  Alert the user as such.
@@ -311,7 +311,7 @@ namespace QTTabBarLib {
                         memStream.Write(arrBytes, 0, arrBytes.Length);
                         memStream.Seek(0, SeekOrigin.Begin);
                         BinaryFormatter binaryFormatter = new BinaryFormatter();
-                        // binaryFormatter.Binder = new PreMergeToMergedDeserializationBinder(); // ĞŞ¸´²»ÄÜĞòÁĞ»¯ÆäËû application »òÕß²úÉúµÄ assembly
+                        // binaryFormatter.Binder = new PreMergeToMergedDeserializationBinder(); // Ş¸Ğ» application ß² assembly
                         object obj = binaryFormatter.Deserialize(memStream);
                         /*QTUtility2.log("ByteArrayToObject:" + Encoding.Default.GetString(arrBytes));
                         if (obj != null)
@@ -701,8 +701,7 @@ namespace QTTabBarLib {
             get
             {
                 if (QTUtility.osVersion.Major >= 10)
-                    return true;
-                return QTUtility.osVersion.Major == 6 && QTUtility.osVersion.Minor == 4;
+                         return QTUtility.osVersion.Major == 6 && QTUtility.osVersion.Minor == 4;
             }
         }
 
@@ -956,7 +955,7 @@ namespace QTTabBarLib {
         }
 
         /**
-         * ·Ç²¶»ñ path ºöÂÔµô
+         * Ç² path Ôµ
          */
         public static void SaveClosing(List<string> closingPaths) {
             if (null == closingPaths || closingPaths.Count == 0)
@@ -1004,7 +1003,7 @@ namespace QTTabBarLib {
             }
         }
         
-        // ÅĞ¶ÏÍ¼Æ¬ÁĞ±í²»ÄÜÎª¿Õ
+        // Ğ¶Í¼Æ¬Ğ±Îª
         private static void SetImageKey(string key, string itemPath) {
             if( null != ImageListGlobal.Images && 
                 ImageListGlobal.Images.Count > 0 && // add by indiff check Images
@@ -1021,7 +1020,7 @@ namespace QTTabBarLib {
             value = ValidateMinMax(value, min, max);
         }
 
-        // ÅĞ¶ÏÊÇ·ñÎª°µºÚÄ£Ê½  Environment.OSVersion.Version.Major
+        // Ğ¶Ç·ÎªÄ£Ê½  Environment.OSVersion.Version.Major
         public static bool getNightMode()
         {
             // if (Environment.OSVersion.Version.Major > 9)  {
@@ -1060,7 +1059,6 @@ namespace QTTabBarLib {
                     }
                 }
             // }
-           return true;
         }
 
 
@@ -1087,16 +1085,16 @@ namespace QTTabBarLib {
         public static void ValidateTextResources(ref Dictionary<string, string[]> dict)
         {
             // MessageBox.Show("Config.Lang.UseLangFile:" + Config.Lang.UseLangFile + ",dict == null:" + (dict == null));
-            // ĞèÒª¹ıÂËµÄµôµÄ url
+            // ÒªËµÄµ url
             string[] urlKeys = { "SiteURL", "PayPalURL" };
             
-            // dict µÄ¼ì²â
+            // dict Ä¼
             if (dict == null)
             {
                 dict = new Dictionary<string, string[]>();
             }
 
-            // ¼ÓÔØÄÚÖÃÓïÑÔ,ÔÚ´Ë¿ÉÌí¼ÓÄÚÖÃÓïÑÔ
+            // ,Ú´Ë¿
             IEnumerable<KeyValuePair<string, string>> keyValuePairs = null;
             switch (Config.Lang.BuiltInLangSelectedIndex)
             {
@@ -1110,13 +1108,13 @@ namespace QTTabBarLib {
                 case 7: keyValuePairs = Resources_String_ru_RU.ResourceManager.GetResourceStrings(); break;
             }
 
-            // Èç¹û¼ÓÔØÎª¿Õ£¬ Ôò¶ÁÈ¡Ä¬ÈÏµÄÓ¦ÓÃÓïÑÔ
+            // ÎªÕ£ È¡Ä¬ÏµÓ¦
             if (null == keyValuePairs)
             {
                 keyValuePairs = Resources_String.ResourceManager.GetResourceStrings();
             }
 
-            // ÅĞ¶ÏÊÇ·ñÎ´Ê¹ÓÃÄÚÖÃÓïÑÔ,Èç¹ûÊÇµÄ»°£¬ÔòÖ±½Ó±éÀú ÄÚÖÃÓïÑÔ
+            // Ğ¶Ç·Î´Ê¹,ÇµÄ»Ö±Ó± 
             if ( !Config.Lang.UseLangFile )
             {
                 foreach (var pair in keyValuePairs)
@@ -1124,21 +1122,21 @@ namespace QTTabBarLib {
                     dict[pair.Key] = pair.Value.Split(SEPARATOR_CHAR);
                 }
             }
-            else // ¼ÓÔØÍâ²¿ÓïÑÔÎÄ¼ş
+            else // â²¿Ä¼
             {
-                // ±éÀúÄÚÖÃÓïÑÔ
+                // 
                 foreach (var pair in keyValuePairs)
                 {
                     if (urlKeys.Contains(pair.Key)) continue;
-                    // ·ÖºÅ·Ö¸ô×Ö·û´®»ñµÃÊı×éĞÎÊ½
+                    // ÖºÅ·Ö¸Ö·Ê½
                     string[] buildinValue = pair.Value.Split(SEPARATOR_CHAR);
                     string[] res;
                     dict.TryGetValue(pair.Key, out res);
-                    if (res == null) // Èç¹û´Ó dict ÖĞÎ´»ñÈ¡µ½¶ÔÓ¦µÄ Öµ£¬ Ôò´Ó ÄÚÖÃÓïÑÔ¸²¸Çµô.
+                    if (res == null) //  dict Î´È¡Ó¦ Öµ  Ô¸Çµ.
                     {
                         dict[pair.Key] = buildinValue;
                     }
-                    else if (res.Length < buildinValue.Length)// Èç¹û»ñÈ¡µ½£¬µ«ÊÇÓÚÄÚÖÃÓïÑÔµÄÊıÄ¿²»Ò»ÖÂ
+                    else if (res.Length < buildinValue.Length)// È¡ÔµÄ¿Ò»
                     {
                         int len = res.Length;
                         Array.Resize(ref res, buildinValue.Length);
@@ -1182,7 +1180,7 @@ namespace QTTabBarLib {
 
         internal static string DefaultNewFileName()
         {
-            return isChinese() ? "ĞÂ½¨ÎÄ±¾ÎÄµµ" : "newDocument";
+            return isChinese() ? "Â½Ä±Äµ" : "newDocument";
         }
 
 
@@ -1198,9 +1196,9 @@ namespace QTTabBarLib {
 
         public static bool IsNoCapturePaths(string path)
         {
-            // ¿ØÖÆÃæ°å
+            // 
             string controlPanel = "::{26EE0668-A00A-44D7-9371-BEB064C98683}";
-            string print = @"::{21EC2020-3AEA-1069-A2DD-08002B30309D}\::{2227A280-3AEA-1069-A2DE-08002B30309D}";// ´òÓ¡»ú
+            string print = @"::{21EC2020-3AEA-1069-A2DD-08002B30309D}\::{2227A280-3AEA-1069-A2DE-08002B30309D}";// Ó¡
             return !IsEmptyStr(path) && (
                 path.StartsWith(controlPanel) ||
                 path.StartsWith(print) 
@@ -1223,11 +1221,11 @@ namespace QTTabBarLib {
             {
                 return false;
             }
-            string pattern = @"\d{1,2}/\d{1,2}/\d{1,2}\sÖÜ[Ò»|¶ş|Èı|ËÄ|Îå|Áù|ÈÕ]\s\d{1,2}:\d{1,2}:\d{1,2}";
+            string pattern = @"\d{1,2}/\d{1,2}/\d{1,2}\s[Ò»||||||]\s\d{1,2}:\d{1,2}:\d{1,2}";
             return Regex.IsMatch(input, pattern);
         }
 
-        // c# »ñÈ¡µ±Ç°½ø³ÌµÄ¸¸½ø³Ì
+        // c# È¡Ç°ÌµÄ¸
         public static string GetParentProcessName()
         {
             Process currentProcess = Process.GetCurrentProcess();
@@ -1243,7 +1241,7 @@ namespace QTTabBarLib {
         }
 
         /// <summary>
-        /// »ñÈ¡¸¸½ø³Ì¡£Èç¹û³ö´í¿ÉÄÜ·µ»Ønull
+        /// È¡Ì¡Ü·null
         /// </summary>
         /// <param name="process"></param>
         /// <returns></returns>

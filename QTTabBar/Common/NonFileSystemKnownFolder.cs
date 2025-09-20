@@ -98,7 +98,7 @@ namespace QTTabBarLib.Common
         /// <summary>Gets this known folder's parsing name.</summary>
         /// <value>A <see cref="System.String"/> object.</value>
 
-        public  string ParsingName {
+        public override string ParsingName {
             get { return  base.ParsingName;}
         }
 

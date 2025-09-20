@@ -46,7 +46,7 @@ namespace QTTabBarLib
         private BreadcrumbBar breadCrumbs;
         // private FilterBox filterBox;
         private IContainer components;
-        internal ContextMenuStripEx contextMenuTab;
+        internal new ContextMenuStripEx contextMenuTab;
 
         // private QTabItem CurrentTab;
         // private BreadcrumbsAddressBar breadCrumbs;
@@ -1142,7 +1142,7 @@ namespace QTTabBarLib
             return PInvoke.CallNextHookEx(hHook_Msg, nCode, wParam, lParam);
         }
 
-        public Color HorizontalExplorerBarBackgroundColor
+        public new Color HorizontalExplorerBarBackgroundColor
         {
             get
             {
@@ -1150,7 +1150,7 @@ namespace QTTabBarLib
             }
         }
 
-        protected Color VerticalExplorerBarBackgroundColor
+        private new Color VerticalExplorerBarBackgroundColor
         {
             get
             {
@@ -1168,7 +1168,7 @@ namespace QTTabBarLib
             return 1;
         }
 
-        public bool IsVertical
+        public new bool IsVertical
         {
             get
             {
@@ -1176,7 +1176,7 @@ namespace QTTabBarLib
             }
         }
 
-        internal  bool IsBottomBar
+        internal new bool IsBottomBar
         {
             get
             {
@@ -1698,7 +1698,7 @@ namespace QTTabBarLib
                 if (explorerBrowser != null)
                     explorerBrowser.UIActivate();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //MessageBox.Show(ex.Message);
                 // explorerBrowser.Navigate((ShellObject)KnownFolders.Computer);

@@ -101,8 +101,7 @@ namespace QTTabBarLib.Common
 
         /// <summary>Gets the path for this known folder.</summary>
         /// <value>A <see cref="System.String"/> object.</value>
-        // public override string Path {
-        public string Path {
+        public override string Path {
             get { return  KnownFolderSettings.Path;}}
 
         /// <summary>Gets a value that indicates whether this known folder's path exists on the computer.</summary>

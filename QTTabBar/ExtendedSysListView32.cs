@@ -527,7 +527,6 @@ namespace QTTabBarLib {
                             else {
                                 rc.left += 0x10;
                             }
-                            bool flag3 = false;
                             bool flag4 = false;
                             bool flag5 = Config.Tweaks.DetailsGridLines;
                             bool flag6 = Config.Tweaks.ToggleFullRowSelect ^ !QTUtility.IsXP;

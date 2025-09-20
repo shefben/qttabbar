@@ -2013,10 +2013,6 @@ namespace QTTabBarLib {
          */
         internal unsafe void RefreshHeight()
         {
-            const int DBID_BANDINFOCHANGED = 0;
-            const int OLECMDEXECOPT_DODEFAULT = 0;
-            const int RBN_HEIGHTCHANGE = -831;
-            const int GWL_HWNDPARENT = -8;
             try
             {
                 this.SuspendLayout();

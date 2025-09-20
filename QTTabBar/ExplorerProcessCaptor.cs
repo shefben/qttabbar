@@ -60,7 +60,6 @@ namespace QTTabBarLib
                         }
 
                     }
-                    IntPtr ppidl;
                     // 检索名为 ITEMIDLIST 结构的已知文件夹的路径。
                     // if (si == null && PInvoke.SHGetKnownFolderIDList(COMGUIDS.FOLDERID_UsersLibraries, 0, IntPtr.Zero, out ppidl) == 0)
                 }

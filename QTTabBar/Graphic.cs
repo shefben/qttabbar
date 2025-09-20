@@ -141,7 +141,7 @@ namespace QTTabBarLib
                     FontStyle.Regular, 
                     GraphicsUnit.Point, (byte)0);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
             return (Font)null;
@@ -153,7 +153,7 @@ namespace QTTabBarLib
             {
                 return new Font(QTUtility.DefaultFontName, point, style, GraphicsUnit.Point, (byte)0);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
             return (Font)null;
