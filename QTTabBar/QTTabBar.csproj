@@ -194,6 +194,7 @@
     <Compile Include="Common\WindowMessage.cs" />
     <Compile Include="Common\WindowNativeMethods.cs" />
     <Compile Include="Common\WindowUtilities.cs" />
+    <Compile Include="WindowSubclass.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="ExplorerBrowser\CommonControlException.cs" />
     <Compile Include="ExplorerBrowser\ExplorerBrowser.cs">
