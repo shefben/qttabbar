@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Media;
@@ -333,7 +334,8 @@ namespace QTTabBarLib {
         
         public static void log(string level, string optional,Dictionary<String, String> dic=null)
         {
-            // ignore 
+            optional = optional ?? string.Empty;
+
             if (null != IGNORES && IGNORES.Length > 0)
             {
                 foreach (var ignore in IGNORES)
@@ -347,30 +349,34 @@ namespace QTTabBarLib {
                 }
             }
 
-            /*
-             var useTime = "";
-             if (null != dateTime)
+            Process process = null;
+            try
             {
-                DateTime oldTime = dateTime;
-                dateTime = DateTime.Now;
-            int threadId = Thread.CurrentThread.ManagedThreadId;
-            DateTime now = DateTime.Now;
-            string useTime = string.Empty;
-            DateTime previous;
-            if (dictTime.TryGetValue(threadId, out previous))
-                useTime = (now - previous).TotalMilliseconds.ToString();
-                dictTime[threadId] = now;
+                process = Process.GetCurrentProcess();
             }
-            else
+            catch
             {
-                dictTime[threadId] = now;
+                // ignore failures to obtain process information
             }
-                    {
-                    .Append(process.Id)
-                    .Append(threadId);
 
-                    .Append(useTime);
-            } 
+            int currentThreadId = Thread.CurrentThread.ManagedThreadId;
+            string useTime = string.Empty;
+            DateTime now = DateTime.Now;
+            lock (dictTime)
+            {
+                if (dictTime.TryGetValue(currentThreadId, out DateTime previous))
+                {
+                    useTime = (now - previous).TotalMilliseconds.ToString(CultureInfo.InvariantCulture);
+                }
+                dictTime[currentThreadId] = now;
+            }
+
+            string appdata = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string appdataQT = Path.Combine(appdata, "QTTabBar");
+            if (!Directory.Exists(appdataQT))
+            {
+                Directory.CreateDirectory(appdataQT);
+            }
 
             string path = Path.Combine(appdataQT, "QTTabBarException.log");
             var line = new StringBuilder();
@@ -413,18 +419,9 @@ namespace QTTabBarLib {
                     .Append(process.Id);
             }
             // 线程 ID
-            if (cThreadId != null)
-            {
-                line
-                    .Append("\tT:")
-                    .Append(cThreadId);
-            }
-            else if (currentThreadId != null)
-            {
-                line
-                    .Append("\tT:")
-                    .Append(currentThreadId);
-            }
+            line
+                .Append("\tT:")
+                .Append(currentThreadId);
 
             if (!string.IsNullOrEmpty(useTime))
             {

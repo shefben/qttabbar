@@ -121,12 +121,12 @@ UINT WIXAPI CloseAndReopen(MSIHANDLE hInstaller) {
         _tcscat(build, windows[i].path);
         _tcscat(build, _T(";"));
     }
-    HKEY key;
+    HKEY key = NULL;
     REGSAM access = KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_WOW64_64KEY;
     if(RegOpenKeyEx(HKEY_CURRENT_USER, _T("Software\\QTTabBar\\"), 0, access, &key) == ERROR_SUCCESS) {
         RegSetValueEx(key, _T("TabsOnLastClosedWindow"), 0, REG_SZ, (LPBYTE)build, length + 1);
     }
-    RegCloseKey(key);
+    if(key != NULL) RegCloseKey(key);
     delete[] build;
     ShellExecute(NULL, NULL, windows[0].path, NULL, NULL, SW_SHOWNORMAL);
     return ERROR_SUCCESS;
@@ -153,14 +153,14 @@ UINT WIXAPI CloseAndReopenAndDeletePlugins(MSIHANDLE hInstaller) {
         _tcscat(build, windows[i].path);
         _tcscat(build, _T(";"));
     }
-    HKEY key;
+    HKEY key = NULL;
     // REGSAM access = KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_WOW64_64KEY | KEY_DELETE;
     REGSAM access = KEY_ALL_ACCESS;
     if(RegOpenKeyEx(HKEY_CURRENT_USER, _T("Software\\QTTabBar\\"), 0, access, &key) == ERROR_SUCCESS) {
         RegSetValueEx(key, _T("TabsOnLastClosedWindow"), 0, REG_SZ, (LPBYTE)build, length + 1);
-		RegDeleteKey(key,_T("Plugins\\Paths"));
+                RegDeleteKey(key,_T("Plugins\\Paths"));
     }
-    RegCloseKey(key);
+    if(key != NULL) RegCloseKey(key);
     delete[] build;
     ShellExecute(NULL, NULL, windows[0].path, NULL, NULL, SW_SHOWNORMAL);
     return ERROR_SUCCESS;
@@ -169,7 +169,7 @@ UINT WIXAPI CloseAndReopenAndDeletePlugins(MSIHANDLE hInstaller) {
 
 
 UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
-    HKEY key;
+    HKEY key = NULL;
     REGSAM access = KEY_QUERY_VALUE | KEY_WOW64_64KEY;
 	// 计算机\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
     if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{DAD20769-75D8-4C1D-80E3-D545563FE9EF}_is1"), 0, access, &key) == ERROR_SUCCESS) {
@@ -178,7 +178,7 @@ UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
        return ERROR_SUCCESS;
     }
 	
-    RegCloseKey(key);
+    if(key != NULL) RegCloseKey(key);
 
 	HKEY hKey = NULL; //保存注册表的句柄 
 	DWORD dwIndexs = 0; //需要返回子项的索引 
@@ -202,9 +202,8 @@ UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
 			DWORD dwSize = sizeof(lpszValue);
 			DWORD dwType = REG_SZ;
 			
-			if (RegOpenKeyEx(HKEY_CLASSES_ROOT, data_Set, NULL, KEY_READ, &hSubKey) == ERROR_SUCCESS)
-			{
-				delete data_Set;
+                        if (RegOpenKeyEx(HKEY_CLASSES_ROOT, data_Set, NULL, KEY_READ, &hSubKey) == ERROR_SUCCESS)
+                        {
 				if (RegQueryValueEx(hSubKey, _T("ProductName"), NULL, &dwType, (LPBYTE)&lpszValue, &dwSize) == ERROR_SUCCESS)
 				{
 					CharLower(lpszValue);
