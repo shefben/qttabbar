@@ -199,13 +199,11 @@ namespace QuizoPlugins {
         }
 
         /// <summary>
-            if (button == null)
-        /// 修复皮肤配置空图片报错
-        /// check mode & button is null ?
+        /// 修复皮肤配置空图片报错 (avoid null images when skins do not provide assets).
         /// </summary>
-        /// <param name="mode"></param>
+        /// <param name="mode">The folder view mode currently active.</param>
         private void UpdateButtonImage(FOLDERVIEWMODE mode) {
-            if (mode == null || null == button )
+            if (button == null)
             {
                 return;
             }
