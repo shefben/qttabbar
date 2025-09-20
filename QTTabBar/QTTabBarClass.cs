@@ -3579,7 +3579,7 @@ namespace QTTabBarLib {
                     : IntPtr.Zero;
         }
 
-#pragma warning disable CS0649
+#pragma warning disable 649
         internal struct TVITEM
         {
             public int mask;
@@ -3593,7 +3593,7 @@ namespace QTTabBarLib {
             public int cChildren;
             public IntPtr lParam;
         }
-#pragma warning restore CS0649
+#pragma warning restore 649
 
         #region 中键点击资源管理器左侧导航
         unsafe private void Handle_MButtonUp_Tree(MSG msg) 

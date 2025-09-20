@@ -26,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Linq;
@@ -222,7 +223,151 @@ namespace QTTabBarLib {
 
     [Serializable]
     public class Config {
-		// Shortcuts to the loaded config, for convenience.
+        private static System.Collections.Generic.IEnumerable<object> GetAllCategories()
+        {
+            if (ConfigManager.LoadedConfig == null)
+            {
+                yield break;
+            }
+
+            yield return Window;
+            yield return Tabs;
+            yield return Tweaks;
+            yield return Tips;
+            yield return Misc;
+            yield return Skin;
+            yield return BBar;
+            yield return Mouse;
+            yield return Keys;
+            yield return Plugin;
+            yield return Lang;
+            yield return Desktop;
+        }
+
+        private static bool TryGetSettingProperty(Scts setting, out object categoryInstance, out System.Reflection.PropertyInfo property)
+        {
+            string settingName = setting.ToString();
+
+            foreach (object category in GetAllCategories())
+            {
+                if (category == null)
+                {
+                    continue;
+                }
+
+                property = category.GetType().GetProperty(settingName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (property != null)
+                {
+                    categoryInstance = category;
+                    return true;
+                }
+            }
+
+            categoryInstance = null;
+            property = null;
+            return false;
+        }
+
+        public static bool Bool(Scts setting)
+        {
+            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            {
+                object value = property.GetValue(category);
+                if (property.PropertyType == typeof(bool))
+                {
+                    return value is bool boolValue && boolValue;
+                }
+
+                if (property.PropertyType == typeof(int))
+                {
+                    return value is int intValue && intValue != 0;
+                }
+
+                if (property.PropertyType.IsEnum && value != null)
+                {
+                    return System.Convert.ToInt32(value) != 0;
+                }
+            }
+
+            return false;
+        }
+
+        public static int Get(Scts setting)
+        {
+            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            {
+                object value = property.GetValue(category);
+                if (value == null)
+                {
+                    return 0;
+                }
+
+                if (property.PropertyType == typeof(int))
+                {
+                    return (int)value;
+                }
+
+                if (property.PropertyType == typeof(bool))
+                {
+                    return (bool)value ? 1 : 0;
+                }
+
+                if (property.PropertyType.IsEnum)
+                {
+                    return System.Convert.ToInt32(value);
+                }
+            }
+
+            return 0;
+        }
+
+        public static bool Positive(Scts setting)
+        {
+            return Get(setting) > 0;
+        }
+
+        public static void Set(Scts setting, bool value)
+        {
+            SetInternal(setting, value);
+        }
+
+        public static void Set(Scts setting, int value)
+        {
+            SetInternal(setting, value);
+        }
+
+        private static void SetInternal(Scts setting, object value)
+        {
+            if (!TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property) || !property.CanWrite)
+            {
+                return;
+            }
+
+            System.Type targetType = property.PropertyType;
+            object convertedValue;
+
+            if (targetType == typeof(bool))
+            {
+                convertedValue = System.Convert.ToBoolean(value);
+            }
+            else if (targetType == typeof(int))
+            {
+                convertedValue = System.Convert.ToInt32(value);
+            }
+            else if (targetType.IsEnum)
+            {
+                convertedValue = System.Enum.ToObject(targetType, value);
+            }
+            else
+            {
+                convertedValue = System.Convert.ChangeType(value, targetType);
+            }
+
+            property.SetValue(category, convertedValue);
+        }
+
+
+// Shortcuts to the loaded config, for convenience.
         public static _Window Window    { get { return ConfigManager.LoadedConfig.window; } }	/*窗口行为*/
         public static _Tabs Tabs        { get { return ConfigManager.LoadedConfig.tabs; } }		/*标签行为*/
         public static _Tweaks Tweaks    { get { return ConfigManager.LoadedConfig.tweaks; } }	/*调整工具*/
