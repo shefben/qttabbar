@@ -375,7 +375,6 @@
     </Compile>
     <Compile Include="RebarController.cs" />
     <Compile Include="MiscClasses.cs" />
-    <Compile Include="Config.cs" />
     <Compile Include="Spinner.xaml.cs">
       <DependentUpon>Spinner.xaml</DependentUpon>
     </Compile>
