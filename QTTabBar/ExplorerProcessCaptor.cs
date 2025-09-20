@@ -13,7 +13,6 @@ namespace QTTabBarLib
     class ExplorerProcessCaptor1 : IShellExecuteHook
     {
         private int S_OK = 1;
-        private int S_FALSE = 0;
         private static volatile bool fEntered;
 
         public int Execute(ref SHELLEXECUTEINFO sei)

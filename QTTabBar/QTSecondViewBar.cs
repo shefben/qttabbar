@@ -38,6 +38,7 @@ namespace QTTabBarLib
     // public sealed class QTSecondViewBar : TabBarBase
     public sealed class QTSecondViewBar : TabBarBase
     {
+#pragma warning disable CS0169, CS0414, CS0649
         internal ExplorerManager explorerManager;
         private Panel viewContainer;
         private Panel controlContainer;
@@ -1811,6 +1812,7 @@ namespace QTTabBarLib
         private ToolStripButton buttonForward;
         private ToolStripDropDownButton buttonNavHistoryMenu;
         private IntPtr TravelToolBarHandle;
+#pragma warning restore CS0169, CS0414, CS0649
 
         private void AddToHistory(QTabItem closingTab)
         {

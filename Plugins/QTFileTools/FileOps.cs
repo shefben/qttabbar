@@ -48,7 +48,7 @@ namespace QuizoPlugins {
 
         private const int WM_COMMAND = 0x0111;
 
-        private const bool ENABLE_LOGGER = false;
+        private static readonly bool EnableLogger = false;
 
 
         public static void FileOperation(FileOpActions action, IntPtr hwndExplr, IShellBrowser shellBrowser) {
@@ -113,7 +113,7 @@ namespace QuizoPlugins {
                 MakeErrorLog(e, "RefreshItems");
             }
             finally {
-                // –ﬁ∏¥ºÙ«–≤Âº˛£¨ “‘œ¬¥˙¬Î÷¥––”–Œ Ã‚
+            if (EnableLogger)
                 if (shellView != null)
                 {
                     // log(" ReleaseComObject shellView " + shellView);
@@ -145,7 +145,7 @@ namespace QuizoPlugins {
                 using (StreamWriter writer = new StreamWriter(path, true))
                 {
                     writer.WriteLine("[log]" + DateTime.Now.ToString() + " " + optional + "\n");
-                    // ¥Ú”°∑Ω∑®µ˜”√’ª
+                    // ÊâìÂç∞ÊñπÊ≥ïË∞ÉÁî®Ê†à
                     /*
                     var stackTrace = new StackTrace();
                     for (int i = 0; i < stackTrace.FrameCount; i++)
@@ -178,11 +178,11 @@ namespace QuizoPlugins {
                 using (StreamWriter writer = new StreamWriter(path, true))
                 {
                     writer.WriteLine(DateTime.Now.ToString());
-                    writer.WriteLine(".NET ∞Ê±æ: " + Environment.Version);
-                    writer.WriteLine("≤Ÿ◊˜œµÕ≥∞Ê±æ: " + Environment.OSVersion.Version + " Major: " + Environment.OSVersion.Version.Major);
+                    writer.WriteLine(".NET ÁâàÊú¨: " + Environment.Version);
+                    writer.WriteLine("Êìç‰ΩúÁ≥ªÁªüÁâàÊú¨: " + Environment.OSVersion.Version + " Major: " + Environment.OSVersion.Version.Major);
                     if (!String.IsNullOrEmpty(optional))
                     {
-                        writer.WriteLine("¥ÌŒÛ–≈œ¢: " + optional);
+                        writer.WriteLine("ÈîôËØØ‰ø°ÊÅØ: " + optional);
                     }
                     if (ex == null)
                     {

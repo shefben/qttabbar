@@ -78,6 +78,8 @@ namespace QTTabBarLib.Common
             if (numItemsReturned < itemsRequested || hr != HResult.Ok) { return false; }
 
             currentItem = ShellObjectFactory.Create(item, nativeShellFolder);
+            current = currentItem;
+            current1 = currentItem;
 
             return true;
         }

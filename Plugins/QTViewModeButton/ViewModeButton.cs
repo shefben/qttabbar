@@ -24,7 +24,7 @@ using QTPlugin.Interop;
 
 namespace QuizoPlugins {
     //[Plugin(PluginType.Interactive, Author = "Quizo", Name = "Change Folder View Mode", Version = "1.0.0.0", Description = "Button to change folder viewmode for XP.")]
-    [Plugin(PluginType.Interactive, Author = "indiff", Name = "²é¿´", Version = "1.0.0.0", Description = "Ìí¼Ó°´Å¥¸Ä±ä²é¿´·½Ê½.")]
+    [Plugin(PluginType.Interactive, Author = "indiff", Name = "æŸ¥çœ‹", Version = "1.0.0.0", Description = "æ·»åŠ æŒ‰é’®æ”¹å˜æŸ¥çœ‹æ–¹å¼.")]
     public class ViewModeButton : IBarCustomItem
     {
         private IPluginServer pluginServer;
@@ -199,8 +199,8 @@ namespace QuizoPlugins {
         }
 
         /// <summary>
-        /// ¸üĞÂ°´Å¥Í¼Æ¬
-        /// ĞŞ¸´Æ¤·ôÅäÖÃ¿ÕÍ¼Æ¬±¨´í
+            if (button == null)
+        /// ä¿®å¤çš®è‚¤é…ç½®ç©ºå›¾ç‰‡æŠ¥é”™
         /// check mode & button is null ?
         /// </summary>
         /// <param name="mode"></param>
