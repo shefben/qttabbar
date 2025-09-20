@@ -30,6 +30,11 @@ namespace QTTabBarLib {
         [ThreadStatic]
         public static bool InMenuLoop;
 
+        static MenuUtility()
+        {
+            InMenuLoop = false;
+        }
+
         private static Font StartUpTabFont;
 
 
@@ -362,7 +367,7 @@ namespace QTTabBarLib {
                 }
             }
             else {
-                // 添加分组的的路径列表
+                // 脤铆录脫路脰脳茅碌脛碌脛脗路戮露脕脨卤铆
                 foreach(string path in g.Paths) {
                     string displayName;
                     if(path.StartsWith(@"\\")) {

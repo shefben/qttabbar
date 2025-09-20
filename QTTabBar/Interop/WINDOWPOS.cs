@@ -1,5 +1,6 @@
 ﻿using System;
 
+#pragma warning disable CS0649
 namespace QTTabBarLib.Interop
 {
   internal struct WINDOWPOS
@@ -13,3 +14,5 @@ namespace QTTabBarLib.Interop
     public SWP flags;
   }
 }
+#pragma warning restore CS0649
+

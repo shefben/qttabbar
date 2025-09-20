@@ -27,7 +27,7 @@ using QTTabBarLib.Interop;
 
 namespace QTTabBarLib {
     public sealed partial class QTTabBarClass {
-        private bool isTabSubFolderMenuVisible;
+        private bool isTabSubFolderMenuVisible = false;
 
         public  class PluginServer : IPluginServer, IDisposable {
             private Dictionary<string, string[]> dicLocalizingStrings;
