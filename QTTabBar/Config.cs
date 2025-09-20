@@ -244,10 +244,9 @@ namespace QTTabBarLib {
             yield return Desktop;
         }
 
-        private static bool TryGetSettingProperty(Scts setting, out object categoryInstance, out System.Reflection.PropertyInfo property)
+        private static bool TryGetSettingProperty(string setting, out object categoryInstance, out System.Reflection.PropertyInfo property)
         {
-            string settingName = setting.ToString();
-
+            string settingName = setting;
             foreach (object category in GetAllCategories())
             {
                 if (category == null)
@@ -268,7 +267,7 @@ namespace QTTabBarLib {
             return false;
         }
 
-        public static bool Bool(Scts setting)
+        public static bool Bool(string setting)
         {
             if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
             {
@@ -292,7 +291,7 @@ namespace QTTabBarLib {
             return false;
         }
 
-        public static int Get(Scts setting)
+        public static int Get(string setting)
         {
             if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
             {
@@ -321,22 +320,22 @@ namespace QTTabBarLib {
             return 0;
         }
 
-        public static bool Positive(Scts setting)
+        public static bool Positive(string setting)
         {
             return Get(setting) > 0;
         }
 
-        public static void Set(Scts setting, bool value)
+        public static void Set(string setting, bool value)
         {
             SetInternal(setting, value);
         }
 
-        public static void Set(Scts setting, int value)
+        public static void Set(string setting, int value)
         {
             SetInternal(setting, value);
         }
 
-        private static void SetInternal(Scts setting, object value)
+        private static void SetInternal(string setting, object value)
         {
             if (!TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property) || !property.CanWrite)
             {
