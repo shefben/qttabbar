@@ -369,16 +369,16 @@ namespace QTTabBarLib.Common
         void GetSpacing([Out] out NativePoint ppt);
 
         [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        new void GetDefaultSpacing(out NativePoint ppt);
+        void GetDefaultSpacing(out NativePoint ppt);
 
         [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        new void GetAutoArrange();
+        void GetAutoArrange();
 
         [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        new void SelectItem(int iItem, uint dwFlags);
+        void SelectItem(int iItem, uint dwFlags);
 
         [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        new void SelectAndPositionItems(uint cidl, IntPtr apidl, ref NativePoint apt, uint dwFlags);
+        void SelectAndPositionItems(uint cidl, IntPtr apidl, ref NativePoint apt, uint dwFlags);
     }
 
     [ComImport,

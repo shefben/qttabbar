@@ -290,9 +290,7 @@ namespace QTTabBarLib {
         public override void RefreshViewWatermark(bool fClear)
         {
             // if (!this.VistaLayout)  return;
-            if ( true  
-                 // Config.Bool(Scts.ViewWatermarking)
-                 )
+            if (this.VistaLayout && Config.Bool(Scts.ViewWatermarking))
             {
                 var dToutiaoX1080IntellijIdea3Png = @"D:\toutiao\1920x1080-intellij-idea3.png";
 

@@ -53,7 +53,7 @@ namespace QTTabBarLib {
         internal const string IMAGEKEY_MYNETWORK = "mynetwork";
         internal const string IMAGEKEY_NOEXT = "noext";
         internal const string IMAGEKEY_NOIMAGE = "noimage";
-        internal const bool IS_DEV_VERSION = true;  // <----------------- Change me before releasing!
+        internal static readonly bool IS_DEV_VERSION = true;  // <----------------- Change me before releasing!
         internal static readonly bool IsRTL = CultureInfo.CurrentCulture.TextInfo.IsRightToLeft;
         internal static readonly bool IsWin7 = Environment.OSVersion.Version >= new Version(6, 1);
         internal static readonly bool IsWin8 = Environment.OSVersion.Version.Major == 6 &&  (Environment.OSVersion.Version.Minor == 2 || Environment.OSVersion.Version.Minor == 3);
@@ -701,7 +701,11 @@ namespace QTTabBarLib {
             get
             {
                 if (QTUtility.osVersion.Major >= 10)
-                         return QTUtility.osVersion.Major == 6 && QTUtility.osVersion.Minor == 4;
+                {
+                    return true;
+                }
+
+                return QTUtility.osVersion.Major == 6 && QTUtility.osVersion.Minor == 4;
             }
         }
 

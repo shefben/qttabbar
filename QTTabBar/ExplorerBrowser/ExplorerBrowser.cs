@@ -193,7 +193,7 @@ namespace QTTabBarLib.ExplorerBrowser.WindowsForms
         {
             if (shellObject == null)
             {
-                throw new ArgumentNullException(nameof(shellObject));
+                throw new ArgumentNullException("shellObject");
             }
 
             if (explorerBrowserControl == null)

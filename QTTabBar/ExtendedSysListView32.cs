@@ -610,7 +610,6 @@ namespace QTTabBarLib {
                                             else {
                                                 graphics2.FillRectangle(fListViewHasFocus ? SystemBrushes.Highlight : SystemBrushes.Control, rectangle2);
                                             }
-                                            flag3 = true;
                                         }
                                         if((fListViewHasFocus && ((iListViewItemState & 1) == 1)) && !flag6) {
                                             ControlPaint.DrawFocusRectangle(graphics2, rectangle2);

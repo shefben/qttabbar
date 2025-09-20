@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <limits>
 
 
 #pragma comment(lib, "GdiPlus.lib")
@@ -56,8 +57,8 @@ void Log(std::wstring log)
 	OutputDebugStringW((L"\n[Debug]: " + log).c_str());
 }
 
-int round_int( double r ) {
-    return (r > 0.0) ? (r + 0.5) : (r - 0.5);
+int round_int(double r) {
+    return static_cast<int>((r > 0.0) ? (r + 0.5) : (r - 0.5));
 }
 
 
@@ -337,18 +338,29 @@ std::wstring GetIniString(std::wstring FilePath, std::wstring AppName, std::wstr
 {
 	if (FileIsExist(FilePath)) {
 		HANDLE pFile = CreateFileW(FilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-		LARGE_INTEGER fileSize;
-		GetFileSizeEx(pFile, &fileSize);
+		if (pFile == INVALID_HANDLE_VALUE) {
+			return std::wstring();
+		}
 
-		wchar_t* data = new wchar_t[fileSize.QuadPart];
-		ZeroMemory(data, sizeof(wchar_t) * fileSize.QuadPart);
-		GetPrivateProfileStringW(AppName.c_str(), KeyName.c_str(), NULL, data, (DWORD)fileSize.QuadPart, FilePath.c_str());
-
-		std::wstring ret = data;
-		delete[] data;
-
+		LARGE_INTEGER fileSize{};
+		if (!GetFileSizeEx(pFile, &fileSize)) {
+			CloseHandle(pFile);
+			return std::wstring();
+		}
 		CloseHandle(pFile);
-		return ret;
+
+		size_t maxAlloc = std::min(static_cast<size_t>(std::numeric_limits<DWORD>::max()), std::numeric_limits<size_t>::max());
+		size_t bufferSize = 1;
+		if (fileSize.QuadPart > 0) {
+			unsigned long long sizeValue = static_cast<unsigned long long>(fileSize.QuadPart);
+			bufferSize = (sizeValue >= maxAlloc) ? maxAlloc : static_cast<size_t>(sizeValue + 1);
+		}
+
+		std::vector<wchar_t> data(bufferSize, L'\0');
+		DWORD bufferLength = static_cast<DWORD>(bufferSize);
+		GetPrivateProfileStringW(AppName.c_str(), KeyName.c_str(), NULL, data.data(), bufferLength, FilePath.c_str());
+
+		return std::wstring(data.data());
 	}
 	return std::wstring();
 }

@@ -171,7 +171,7 @@ UINT WIXAPI CloseAndReopenAndDeletePlugins(MSIHANDLE hInstaller) {
 UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
     HKEY key;
     REGSAM access = KEY_QUERY_VALUE | KEY_WOW64_64KEY;
-	// ¼ÆËã»ú\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+	// è®¡ç®—æœº\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
     if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{DAD20769-75D8-4C1D-80E3-D545563FE9EF}_is1"), 0, access, &key) == ERROR_SUCCESS) {
        MsiSetProperty(hInstaller, _T("OBSOLETEVERSION"), _T("1"));
        RegCloseKey(key);
@@ -179,11 +179,11 @@ UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
     }
 	
     RegCloseKey(key);
-	// ±éÀú×¢²á±íµÄÂ·¾¶¼ì²âÀÏ°æ±¾ ¼ÆËã»ú\HKEY_CLASSES_ROOT\Installer\Products
-	HKEY hKey = NULL; //±£´æ×¢²á±íµÄ¾ä±ú 
-	DWORD dwIndexs = 0; //ĞèÒª·µ»Ø×ÓÏîµÄË÷Òı 
-	TCHAR keyName[MAX_PATH] = { 0 }; //±£´æ×Ó¼üµÄÃû³Æ 
-	DWORD charLength = 256;  //ÏëÒª¶ÁÈ¡¶àÉÙ×Ö½Ú²¢·µ»ØÊµ¼Ê¶ÁÈ¡µ½µÄ×Ö·û³¤¶È
+
+	HKEY hKey = NULL; //ä¿å­˜æ³¨å†Œè¡¨çš„å¥æŸ„ 
+	DWORD dwIndexs = 0; //éœ€è¦è¿”å›å­é¡¹çš„ç´¢å¼• 
+	TCHAR keyName[MAX_PATH] = { 0 }; //ä¿å­˜å­é”®çš„åç§° 
+	DWORD charLength = 256;  //æƒ³è¦è¯»å–å¤šå°‘å­—èŠ‚å¹¶è¿”å›å®é™…è¯»å–åˆ°çš„å­—ç¬¦é•¿åº¦
 	// auto subKey = _T("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
 	auto subKey = _T("Installer\\Products");
 	// if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
@@ -222,7 +222,7 @@ UINT WIXAPI CheckOldVersion(MSIHANDLE hInstaller) {
 				}
 			}
 			++dwIndexs;
-			charLength = 256; // Êı¾İ±ØĞëÒªÖØÖÃÒ»ÏÂ£¬ ²»È»Êı¾İ³¤¶È»áÓĞÎÊÌâ
+			charLength = 256; // æ•°æ®å¿…é¡»è¦é‡ç½®ä¸€ä¸‹ï¼Œ ä¸ç„¶æ•°æ®é•¿åº¦ä¼šæœ‰é—®é¢˜
 		}
 	}
 	if (hKey != NULL)
