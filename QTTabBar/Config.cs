@@ -269,17 +269,19 @@ namespace QTTabBarLib {
 
         public static bool Bool(string setting)
         {
-            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (TryGetSettingProperty(setting, out category, out property))
             {
-                object value = property.GetValue(category);
+                object value = property.GetValue(category, null);
                 if (property.PropertyType == typeof(bool))
                 {
-                    return value is bool boolValue && boolValue;
+                    return value != null && (bool)value;
                 }
 
                 if (property.PropertyType == typeof(int))
                 {
-                    return value is int intValue && intValue != 0;
+                    return value != null && ((int)value) != 0;
                 }
 
                 if (property.PropertyType.IsEnum && value != null)
@@ -293,9 +295,11 @@ namespace QTTabBarLib {
 
         public static int Get(string setting)
         {
-            if (TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property))
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (TryGetSettingProperty(setting, out category, out property))
             {
-                object value = property.GetValue(category);
+                object value = property.GetValue(category, null);
                 if (value == null)
                 {
                     return 0;
@@ -337,7 +341,9 @@ namespace QTTabBarLib {
 
         private static void SetInternal(string setting, object value)
         {
-            if (!TryGetSettingProperty(setting, out object category, out System.Reflection.PropertyInfo property) || !property.CanWrite)
+            object category;
+            System.Reflection.PropertyInfo property;
+            if (!TryGetSettingProperty(setting, out category, out property) || !property.CanWrite)
             {
                 return;
             }
@@ -362,7 +368,7 @@ namespace QTTabBarLib {
                 convertedValue = System.Convert.ChangeType(value, targetType);
             }
 
-            property.SetValue(category, convertedValue);
+            property.SetValue(category, convertedValue, null);
         }
 
 
