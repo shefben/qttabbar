@@ -337,7 +337,8 @@
     <Compile Include="QTSecondViewBar.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="QTTabBar\WindowSubclass.cs" />
+    <Compile Include="Config.cs" />
+    <Compile Include="Scts.g.cs" />
     <Compile Include="RegistryUtil.cs" />
     <Compile Include="Resources_Image.cs" />
     <Compile Include="Resources_String.cs" />
