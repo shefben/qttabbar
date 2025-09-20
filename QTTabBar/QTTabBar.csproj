@@ -306,9 +306,12 @@
     <Compile Include="OptionsDialog\Options11_ButtonBar.xaml.cs">
       <DependentUpon>Options11_ButtonBar.xaml</DependentUpon>
     </Compile>
-    <Compile Include="OptionsDialog\Options12_Plugins.xaml.cs">
-      <DependentUpon>Options12_Plugins.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="OptionsDialog\Options12_Plugins.xaml.cs">
+      <DependentUpon>Options12_Plugins.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OptionsDialog\Options13_Language.xaml.cs">
+      <DependentUpon>Options13_Language.xaml</DependentUpon>
+    </Compile>
 
       <DependentUpon>Options13_Language.xaml</DependentUpon>
     </Compile>
