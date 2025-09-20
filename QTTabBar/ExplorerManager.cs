@@ -18,7 +18,7 @@ namespace QTTabBarLib
         private static int windowDpi;
         [ThreadStatic]
         public static bool StartUpProcessComplete;
-#pragma warning disable CS0169, CS0414, CS0649
+#pragma warning disable 169, 414, 649
         private SHDocVw.WebBrowser explorer;
         private IShellBrowser shellBrowser;
         // private IBandSite bandSite;
@@ -118,7 +118,7 @@ namespace QTTabBarLib
         public QTabItem PendingModifyTabExtraView3rd;
         public QTabItem PendingTabDefaultView;
         public bool StartUpSelectionPendingExtraView;
-#pragma warning restore CS0169, CS0414, CS0649
+#pragma warning restore 169, 414, 649
 
         public ExplorerManager.ToolbarManager Toolbars
         {
@@ -154,7 +154,7 @@ namespace QTTabBarLib
 
         public sealed class ToolbarManager
         {
-#pragma warning disable CS0169, CS0414
+#pragma warning disable 169, 414
             private ExplorerManager explorerManager;
             private QTTabBarClass tabBar;
             private QTTabBarClass tabBarAnother;
@@ -166,7 +166,7 @@ namespace QTTabBarLib
             // private QThirdViewBar thirdViewBar;
             private bool fNowHiding3rdViewBar;
 
-#pragma warning restore CS0169, CS0414
+#pragma warning restore 169, 414
             public ToolbarManager(ExplorerManager explorerManager)
             {
                 this.explorerManager = explorerManager;
