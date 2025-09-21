@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using QTTabBarLib.Interop;
@@ -93,7 +94,13 @@ namespace QTTabBarLib {
         private const int GROUP_INDICATOR_WIDTH = 12;
         private const int GROUP_INDICATOR_HEIGHT = 12;
         private const int GROUP_INDICATOR_SPACING = 4;
+        private const int GROUP_RAIL_WIDTH = 6;
+        private const int GROUP_ISLAND_PADDING = 6;
         private readonly Dictionary<string, TabGroupState> groupStates = new Dictionary<string, TabGroupState>(StringComparer.OrdinalIgnoreCase);
+        private bool groupingDragActive;
+        private Point groupingDragOrigin;
+        private TabGroupState groupDropTarget;
+        private readonly EventHandler<TagVisualChangedEventArgs> tagVisualHandler;
 
         [ThreadStatic()]
         private static VisualStyleRenderer vsr_LHot;
@@ -168,6 +175,12 @@ namespace QTTabBarLib {
             {
                 this.sfTypoGraphic.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
             }
+
+            tagVisualHandler = TagManager_TagVisualChanged;
+            try {
+                TagManager.TagVisualChanged += tagVisualHandler;
+            }
+            catch { }
 
             /*if (QTUtility.InNightMode)
             {
@@ -664,6 +677,12 @@ namespace QTTabBarLib {
             if(bmpCloseBtn_Hot != null) {
                 bmpCloseBtn_Hot.Dispose();
                 bmpCloseBtn_Hot = null;
+            }
+            if(disposing && tagVisualHandler != null) {
+                try {
+                    TagManager.TagVisualChanged -= tagVisualHandler;
+                }
+                catch { }
             }
             if(bmpCloseBtn_Pressed != null) {
                 bmpCloseBtn_Pressed.Dispose();
@@ -1498,6 +1517,11 @@ namespace QTTabBarLib {
                 }
             }
             draggingTab = tabMouseOn;
+            if(e.Button == MouseButtons.Left) {
+                groupingDragOrigin = e.Location;
+                groupingDragActive = false;
+                UpdateGroupDropTarget(null);
+            }
             base.OnMouseDown(e);
         }
 
@@ -1512,12 +1536,34 @@ namespace QTTabBarLib {
             }
             hotTab = null;
             fNowMouseIsOnCloseBtn = fNowMouseIsOnIcon = false;
+            if(groupingDragActive) {
+                UpdateGroupDropTarget(null);
+                groupingDragActive = false;
+            }
             PInvoke.InvalidateRect(Handle, IntPtr.Zero, true);
             base.OnMouseLeave(e);
         }
 
         protected override void OnMouseMove(MouseEventArgs e) {
             int num;
+            if((e.Button & MouseButtons.Left) == MouseButtons.Left && draggingTab != null) {
+                if(!groupingDragActive) {
+                    Rectangle dragRect = new Rectangle(
+                        groupingDragOrigin.X - SystemInformation.DragSize.Width / 2,
+                        groupingDragOrigin.Y - SystemInformation.DragSize.Height / 2,
+                        SystemInformation.DragSize.Width,
+                        SystemInformation.DragSize.Height);
+                    if(!dragRect.Contains(e.Location)) {
+                        groupingDragActive = true;
+                    }
+                }
+                if(groupingDragActive) {
+                    UpdateGroupDropTarget(HitTestGroupSurface(e.Location));
+                }
+            }
+            else if(groupingDragActive) {
+                UpdateGroupDropTarget(null);
+            }
             if(((e.Button == MouseButtons.Right) && !Parent.RectangleToScreen(Bounds).Contains(MousePosition)) && ((ItemDrag != null) && (draggingTab != null))) {
                 ItemDrag(this, new ItemDragEventArgs(e.Button, draggingTab));
             }
@@ -1561,7 +1607,12 @@ namespace QTTabBarLib {
         }
 
         protected override void OnMouseUp(MouseEventArgs e) {
+            QTabItem droppedTab = draggingTab;
+            bool wasGroupingDrag = groupingDragActive;
+            TabGroupState dropTarget = groupDropTarget;
             draggingTab = null;
+            groupingDragActive = false;
+            UpdateGroupDropTarget(null);
             if(fSuppressMouseUp) {
                 fSuppressMouseUp = false;
                 base.OnMouseUp(e);
@@ -1569,6 +1620,9 @@ namespace QTTabBarLib {
             else {
                 int num;
                 QTabItem tabMouseOn = GetTabMouseOn(out num);
+                if(e.Button == MouseButtons.Left && wasGroupingDrag && droppedTab != null) {
+                    HandleGroupDrop(droppedTab, dropTarget);
+                }
                 if(((fDrawCloseButton && (e.Button != MouseButtons.Right)) && ((CloseButtonClicked != null) && (tabMouseOn != null))) && (!tabMouseOn.TabLocked && HitTestOnButtons(tabMouseOn.TabBounds, e.Location, true, num == iSelectedIndex))) {
                     if(e.Button == MouseButtons.Left) {
                         iTabMouseOnButtonsIndex = -1;
@@ -1688,6 +1742,7 @@ namespace QTTabBarLib {
         private void OnPaint_MultipleRow(PaintEventArgs e) {
             CalculateItemRectangle_MultiRows();
             try {
+                DrawGroupIndicators(e.Graphics);
                 QTabItem tabMouseOn = GetTabMouseOn();
                 bool fVisualStyle = !fForceClassic && VisualStyleRenderer.IsSupported;
                 if(fVisualStyle && (vsr_LPressed == null)) {
@@ -1725,7 +1780,6 @@ namespace QTTabBarLib {
                         }
                     }
                 }
-                DrawGroupIndicators(e.Graphics);
                 ShowUpDown(false);
             }
             catch(Exception exception) {
@@ -2280,6 +2334,10 @@ namespace QTTabBarLib {
             }
             int width = GROUP_INDICATOR_WIDTH + GROUP_INDICATOR_SPACING;
             state.AnchorBounds = new Rectangle(x, y, width, height);
+            int railHeight = Math.Max(height - 4, 4);
+            int railX = x + Math.Max((width - GROUP_RAIL_WIDTH) / 2, 0);
+            state.RailBounds = new Rectangle(railX, y + 2, GROUP_RAIL_WIDTH, railHeight);
+            state.IndicatorBounds = state.RailBounds;
             x += width;
         }
 
@@ -2365,6 +2423,10 @@ namespace QTTabBarLib {
                     continue;
                 }
                 state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+                state.RailBounds = Rectangle.Empty;
+                state.IslandBounds = Rectangle.Empty;
+                state.IndicatorBounds = Rectangle.Empty;
+                state.DropHighlighted = false;
                 if(state.Tabs.Count == 0) {
                     empty.Add(pair.Key);
                 }
@@ -2385,6 +2447,118 @@ namespace QTTabBarLib {
                 state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
                 state.Tabs.Sort((a, b) => tabPages.IndexOf(a).CompareTo(tabPages.IndexOf(b)));
                 ApplyGroupCollapseState(state);
+                UpdateGroupAccent(state);
+            }
+        }
+
+        private bool UpdateGroupAccent(TabGroupState state) {
+            if(state == null) {
+                return false;
+            }
+            Color accent;
+            bool useTagColor = TryResolveSharedTagAccent(state, out accent);
+            if(!useTagColor) {
+                accent = ResolveGroupAccent(state.Name);
+            }
+            if(!state.AccentColor.IsEmpty && ColorsEqual(state.AccentColor, accent)) {
+                return false;
+            }
+            state.AccentColor = accent;
+            return true;
+        }
+
+        private static bool TryResolveSharedTagAccent(TabGroupState state, out Color accent) {
+            accent = Color.Empty;
+            if(state == null || state.Tabs == null || state.Tabs.Count == 0) {
+                return false;
+            }
+            Color? candidate = null;
+            foreach(QTabItem tab in state.Tabs) {
+                if(tab == null) {
+                    continue;
+                }
+                Color? tagColor = tab.TagTextColor;
+                if(!tagColor.HasValue && !string.IsNullOrEmpty(tab.CurrentPath)) {
+                    tagColor = TagManager.GetTagColorForPath(tab.CurrentPath);
+                }
+                if(!tagColor.HasValue) {
+                    return false;
+                }
+                if(!candidate.HasValue) {
+                    candidate = tagColor;
+                    continue;
+                }
+                if(candidate.Value.ToArgb() != tagColor.Value.ToArgb()) {
+                    return false;
+                }
+            }
+            if(candidate.HasValue) {
+                accent = candidate.Value;
+                return true;
+            }
+            return false;
+        }
+
+        private static Color GetGroupAccentColor(TabGroupState state) {
+            if(state != null && !state.AccentColor.IsEmpty) {
+                return state.AccentColor;
+            }
+            string name = state != null ? state.Name : null;
+            return ResolveGroupAccent(name);
+        }
+
+        private static bool ColorsEqual(Color left, Color right) {
+            return left.ToArgb() == right.ToArgb();
+        }
+
+        private void TagManager_TagVisualChanged(object sender, TagVisualChangedEventArgs e) {
+            if(IsDisposed) {
+                return;
+            }
+            if(InvokeRequired) {
+                try {
+                    BeginInvoke(new Action(() => HandleTagVisualChanged(e)));
+                }
+                catch { }
+                return;
+            }
+            HandleTagVisualChanged(e);
+        }
+
+        private void HandleTagVisualChanged(TagVisualChangedEventArgs e) {
+            if(IsDisposed) {
+                return;
+            }
+            bool invalidate = false;
+            foreach(TabGroupState state in groupStates.Values) {
+                if(state == null || state.Tabs == null || state.Tabs.Count == 0) {
+                    continue;
+                }
+                if(e != null && !e.RequiresFullRefresh) {
+                    bool relevant = false;
+                    foreach(QTabItem tab in state.Tabs) {
+                        if(tab == null) {
+                            continue;
+                        }
+                        string path = tab.CurrentPath;
+                        if(string.IsNullOrEmpty(path)) {
+                            continue;
+                        }
+                        if(e.AffectsPath(path)) {
+                            relevant = true;
+                            break;
+                        }
+                    }
+                    if(!relevant) {
+                        continue;
+                    }
+                }
+                if(UpdateGroupAccent(state)) {
+                    invalidate = true;
+                }
+            }
+            if(invalidate) {
+                Invalidate();
             }
         }
 
@@ -2429,72 +2603,253 @@ namespace QTTabBarLib {
             state.IsCollapsed = !state.IsCollapsed;
             ApplyGroupCollapseState(state);
             EnsureSelectionForCollapsedGroups();
+            UpdateGroupDropTarget(null);
             Invalidate();
         }
 
         private void UpdateGroupIndicators() {
-            foreach(var state in groupStates.Values) {
-                Rectangle anchor = state.AnchorBounds;
-                if(anchor.Width <= 0 || anchor.Height <= 0) {
-                    state.IndicatorBounds = Rectangle.Empty;
-                    continue;
-                }
-                int indicatorHeight = Math.Min(anchor.Height - 4, GROUP_INDICATOR_HEIGHT);
-                if(indicatorHeight < 6) {
-                    indicatorHeight = Math.Min(anchor.Height - 2, GROUP_INDICATOR_HEIGHT);
-                }
-                int x = anchor.Left + Math.Max((anchor.Width - GROUP_INDICATOR_WIDTH) / 2, 0);
-                int y = anchor.Top + Math.Max((anchor.Height - indicatorHeight) / 2, 0);
-                state.IndicatorBounds = new Rectangle(x, y, GROUP_INDICATOR_WIDTH, indicatorHeight);
-            }
+            UpdateGroupIslandGeometry();
         }
 
         private void DrawGroupIndicators(Graphics g) {
-            UpdateGroupIndicators();
+            DrawGroupIslands(g);
+        }
+
+        private static Color ResolveGroupAccent(string groupName) {
+            if(string.IsNullOrEmpty(groupName)) {
+                return Color.SteelBlue;
+            }
+            unchecked {
+                int hash = 17;
+                foreach(char c in groupName) {
+                    hash = hash * 31 + c;
+                }
+                double hue = (hash & 0x7fffffff) % 360;
+                return ColorFromHsl(hue / 360.0, 0.55, 0.45);
+            }
+        }
+
+        private static Color ColorFromHsl(double h, double s, double l) {
+            double r = l;
+            double g = l;
+            double b = l;
+            if(s != 0) {
+                double q = l < 0.5 ? l * (1 + s) : (l + s - l * s);
+                double p = 2 * l - q;
+                r = HueToRgb(p, q, h + 1.0 / 3.0);
+                g = HueToRgb(p, q, h);
+                b = HueToRgb(p, q, h - 1.0 / 3.0);
+            }
+            return Color.FromArgb(255, (int)Math.Round(r * 255), (int)Math.Round(g * 255), (int)Math.Round(b * 255));
+        }
+
+        private static double HueToRgb(double p, double q, double t) {
+            if(t < 0) {
+                t += 1;
+            }
+            if(t > 1) {
+                t -= 1;
+            }
+            if(t < 1.0 / 6.0) {
+                return p + (q - p) * 6 * t;
+            }
+            if(t < 1.0 / 2.0) {
+                return q;
+            }
+            if(t < 2.0 / 3.0) {
+                return p + (q - p) * (2.0 / 3.0 - t) * 6;
+            }
+            return p;
+        }
+
+        private void DrawGroupIslands(Graphics g) {
+            UpdateGroupIslandGeometry();
             foreach(var state in groupStates.Values) {
-                Rectangle rect = state.IndicatorBounds;
-                if(rect.Width <= 0 || rect.Height <= 0) {
+                if(state == null) {
                     continue;
                 }
+                Rectangle island = state.IslandBounds;
+                Rectangle rail = state.RailBounds;
                 if((iMultipleType == 0) && fNeedToDrawUpDown) {
-                    rect.Offset(iScrollWidth, 0);
+                    if(!island.IsEmpty) {
+                        island.Offset(iScrollWidth, 0);
+                    }
+                    if(!rail.IsEmpty) {
+                        rail.Offset(iScrollWidth, 0);
+                    }
                 }
-                if(rect.Right < 0 || rect.Left > Width) {
+                Color accent = GetGroupAccentColor(state);
+                if(!state.IsCollapsed && !island.IsEmpty) {
+                    Rectangle background = island;
+                    background.Width = Math.Max(background.Width, 4);
+                    background.Height = Math.Max(background.Height, 4);
+                    Color fillColor = Color.FromArgb(state.DropHighlighted ? 96 : 48, accent);
+                    Color borderColor = Color.FromArgb(160, accent);
+                    using(SolidBrush brush = new SolidBrush(fillColor))
+                    using(Pen pen = new Pen(borderColor, 1f)) {
+                        g.FillRectangle(brush, background);
+                        g.DrawRectangle(pen, background);
+                    }
+                }
+                if(rail.Width <= 0 || rail.Height <= 0) {
                     continue;
                 }
-                bool containsSelected = selectedTabPage != null && state.Tabs.Contains(selectedTabPage);
-                Color baseColor = containsSelected ? Config.Skin.TabTextActiveColor : Config.Skin.TabTextHotColor;
-                Color fill = state.IsCollapsed ? ControlPaint.Dark(baseColor) : baseColor;
-                using(SolidBrush brush = new SolidBrush(fill))
-                using(Pen pen = new Pen(ControlPaint.Dark(fill))) {
-                    g.FillRectangle(brush, rect);
-                    g.DrawRectangle(pen, rect);
+                if(rail.Right < 0 || rail.Left > Width) {
+                    continue;
                 }
-                Point[] triangle;
-                if(state.IsCollapsed) {
-                    triangle = new[] {
-                        new Point(rect.Left + 3, rect.Top + 2),
-                        new Point(rect.Right - 3, rect.Top + rect.Height / 2),
-                        new Point(rect.Left + 3, rect.Bottom - 2)
-                    };
+                DrawGroupRail(g, rail, accent, state.IsCollapsed, state.DropHighlighted);
+            }
+        }
+
+        private void DrawGroupRail(Graphics g, Rectangle rail, Color accent, bool collapsed, bool highlighted) {
+            Color fill = highlighted ? ControlPaint.LightLight(accent) : accent;
+            using(SolidBrush brush = new SolidBrush(fill))
+            using(Pen pen = new Pen(ControlPaint.Dark(fill))) {
+                g.FillRectangle(brush, rail);
+                g.DrawRectangle(pen, rail);
+            }
+            int inset = Math.Max(2, rail.Width / 2);
+            Point[] glyph;
+            if(collapsed) {
+                glyph = new[] {
+                    new Point(rail.Left + inset, rail.Top + rail.Height / 2),
+                    new Point(rail.Right - inset, rail.Top + inset),
+                    new Point(rail.Right - inset, rail.Bottom - inset)
+                };
+            }
+            else {
+                glyph = new[] {
+                    new Point(rail.Right - inset, rail.Top + rail.Height / 2),
+                    new Point(rail.Left + inset, rail.Top + inset),
+                    new Point(rail.Left + inset, rail.Bottom - inset)
+                };
+            }
+            using(SolidBrush glyphBrush = new SolidBrush(Color.White)) {
+                g.FillPolygon(glyphBrush, glyph);
+            }
+        }
+
+        private void UpdateGroupIslandGeometry() {
+            foreach(var state in groupStates.Values) {
+                if(state == null) {
+                    continue;
                 }
-                else {
-                    triangle = new[] {
-                        new Point(rect.Left + 3, rect.Top + 3),
-                        new Point(rect.Right - 3, rect.Top + 3),
-                        new Point(rect.Left + rect.Width / 2, rect.Bottom - 3)
-                    };
+                Rectangle anchor = state.AnchorBounds;
+                Rectangle union = Rectangle.Empty;
+                foreach(QTabItem tab in state.Tabs) {
+                    if(tab == null || tab.CollapsedByGroup) {
+                        continue;
+                    }
+                    Rectangle rect = tab.TabBounds;
+                    if(rect.IsEmpty) {
+                        continue;
+                    }
+                    union = union.IsEmpty ? rect : Rectangle.Union(union, rect);
                 }
-                using(SolidBrush arrowBrush = new SolidBrush(Color.White)) {
-                    g.FillPolygon(arrowBrush, triangle);
+                if(union.IsEmpty) {
+                    state.IslandBounds = Rectangle.Empty;
+                    if(anchor.Width > 0 && anchor.Height > 0) {
+                        int railHeight = Math.Max(anchor.Height - 4, 4);
+                        int railX = anchor.Left + Math.Max((anchor.Width - GROUP_RAIL_WIDTH) / 2, 0);
+                        state.RailBounds = new Rectangle(railX, anchor.Top + 2, GROUP_RAIL_WIDTH, railHeight);
+                    }
+                    else if(state.RailBounds.IsEmpty) {
+                        state.RailBounds = Rectangle.Empty;
+                    }
+                    state.IndicatorBounds = state.RailBounds;
+                    continue;
                 }
+                int islandLeft = Math.Min(anchor.Left, union.Left) - GROUP_ISLAND_PADDING;
+                int islandRight = union.Right + GROUP_ISLAND_PADDING;
+                int islandTop = union.Top + 1;
+                int islandBottom = union.Bottom - 1;
+                state.IslandBounds = new Rectangle(islandLeft, islandTop, Math.Max(islandRight - islandLeft, 4), Math.Max(islandBottom - islandTop, 4));
+                int railXBase = anchor.Width > 0
+                        ? anchor.Left + Math.Max((anchor.Width - GROUP_RAIL_WIDTH) / 2, 0)
+                        : union.Left - GROUP_RAIL_WIDTH - 4;
+                railXBase = Math.Min(railXBase, union.Left - 2);
+                int railHeight = Math.Max(union.Height - 4, 4);
+                state.RailBounds = new Rectangle(railXBase, union.Top + 2, GROUP_RAIL_WIDTH, railHeight);
+                state.IndicatorBounds = state.RailBounds;
+            }
+        }
+
+        private TabGroupState HitTestGroupSurface(Point location) {
+            foreach(var state in groupStates.Values) {
+                if(state == null) {
+                    continue;
+                }
+                Rectangle island = state.IslandBounds;
+                Rectangle rail = state.RailBounds;
+                if((iMultipleType == 0) && fNeedToDrawUpDown) {
+                    if(!island.IsEmpty) {
+                        island.Offset(iScrollWidth, 0);
+                    }
+                    if(!rail.IsEmpty) {
+                        rail.Offset(iScrollWidth, 0);
+                    }
+                }
+                if(!state.IsCollapsed && !island.IsEmpty && island.Contains(location)) {
+                    return state;
+                }
+                if(!rail.IsEmpty && rail.Contains(location)) {
+                    return state;
+                }
+            }
+            return null;
+        }
+
+        private void UpdateGroupDropTarget(TabGroupState target) {
+            if(groupDropTarget == target) {
+                return;
+            }
+            if(groupDropTarget != null) {
+                groupDropTarget.DropHighlighted = false;
+            }
+            groupDropTarget = target;
+            if(groupDropTarget != null) {
+                groupDropTarget.DropHighlighted = true;
+            }
+            Invalidate();
+        }
+
+        private void AddTabToGroup(TabGroupState state, QTabItem tab) {
+            if(state == null || tab == null) {
+                return;
+            }
+            List<QTabItem> members = state.Tabs.Where(t => t != null && tabPages.Contains(t)).ToList();
+            if(!members.Contains(tab)) {
+                members.Add(tab);
+                AssignGroupTabs(state.Name, members);
+            }
+            if(state.IsCollapsed) {
+                state.IsCollapsed = false;
+                ApplyGroupCollapseState(state);
+            }
+            EnsureSelectionForCollapsedGroups();
+            Invalidate();
+        }
+
+        private void HandleGroupDrop(QTabItem tab, TabGroupState target) {
+            if(tab == null) {
+                return;
+            }
+            if(target != null) {
+                AddTabToGroup(target, tab);
+            }
+            else if(!string.IsNullOrEmpty(tab.GroupKey)) {
+                RemoveTabFromGroups(tab);
+                CleanupEmptyGroups();
+                SyncGroupOrder();
+                EnsureSelectionForCollapsedGroups();
+                Invalidate();
             }
         }
 
         private bool TryHandleGroupIndicatorClick(Point location) {
-            UpdateGroupIndicators();
+            UpdateGroupIslandGeometry();
             foreach(var state in groupStates.Values) {
-                Rectangle rect = state.IndicatorBounds;
+                Rectangle rect = state.RailBounds;
                 if(rect.Width <= 0 || rect.Height <= 0) {
                     continue;
                 }
@@ -2527,6 +2882,10 @@ namespace QTTabBarLib {
             public bool IsCollapsed;
             public Rectangle AnchorBounds;
             public Rectangle IndicatorBounds;
+            public Rectangle IslandBounds;
+            public Rectangle RailBounds;
+            public Color AccentColor;
+            public bool DropHighlighted;
         }
 
         public sealed class QTabCollection : List<QTabItem> {

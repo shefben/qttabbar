@@ -31,6 +31,8 @@ namespace QTTabBarLib {
         private struct TagVisualInfo {
             public bool HasTag;
             public Color? TextColor;
+            public string Path;
+            public int VisualHash;
         }
         private Dictionary<int, TagVisualInfo> tagInfoCache;
         private NativeWindowController EditController;
@@ -47,6 +49,10 @@ namespace QTTabBarLib {
         internal ExtendedSysListView32(ShellBrowserEx ShellBrowser, IntPtr hwndShellView, IntPtr hwndListView, IntPtr hwndSubDirTipMessageReflect)
                 : base(ShellBrowser, hwndShellView, hwndListView, hwndSubDirTipMessageReflect) {
             SetStyleFlags();
+            try {
+                TagManager.TagVisualChanged += TagManager_TagVisualChanged;
+            }
+            catch { }
         }
 
         private int CorrectHotItem(int iItem) {
@@ -466,7 +472,8 @@ namespace QTTabBarLib {
         // �����Զ������
         private bool HandleCustomDraw(ref Message msg) {
             // TODO this needs to be cleaned
-            if(Config.Tweaks.AlternateRowColors && (ShellBrowser.ViewMode == FVM.DETAILS)) {
+            if(ShellBrowser.ViewMode == FVM.DETAILS) {
+                bool enableAlternating = Config.Tweaks.AlternateRowColors;
                 NMLVCUSTOMDRAW structure = (NMLVCUSTOMDRAW)Marshal.PtrToStructure(msg.LParam, typeof(NMLVCUSTOMDRAW));
                 int dwItemSpec = 0;
                 if((ulong)structure.nmcd.dwItemSpec < Int32.MaxValue) {
@@ -487,8 +494,10 @@ namespace QTTabBarLib {
                             bool isTagged = tagInfo.HasTag;
                             Color? tagColor = tagInfo.TextColor;
                             bool isSelectedState = (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) != 0;
-                            structure.clrTextBk = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowBackgroundColor);
-                            structure.clrText = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowForegroundColor);
+                            Color baseBackground = enableAlternating ? Config.Tweaks.AltRowBackgroundColor : SystemColors.Window;
+                            Color baseForeground = enableAlternating ? Config.Tweaks.AltRowForegroundColor : SystemColors.WindowText;
+                            structure.clrTextBk = QTUtility2.MakeCOLORREF(baseBackground);
+                            structure.clrText = QTUtility2.MakeCOLORREF(baseForeground);
                             if(!isSelectedState) {
                                 if(tagColor.HasValue) {
                                     structure.clrText = QTUtility2.MakeCOLORREF(tagColor.Value);
@@ -517,9 +526,12 @@ namespace QTTabBarLib {
                             if(structure.iSubItem > 0 && (!fullRowSel || !drawingHotItem)) {
                                 if(!fullRowSel || (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) == 0) {
                                     using(Graphics graphics = Graphics.FromHdc(structure.nmcd.hdc)) {
-                                        if(sbAlternate == null ||
-                                           sbAlternate.Color != Config.Tweaks.AltRowBackgroundColor) {
-                                            sbAlternate = new SolidBrush(Config.Tweaks.AltRowBackgroundColor);
+                                        Color alternateColor = enableAlternating ? Config.Tweaks.AltRowBackgroundColor : SystemColors.Window;
+                                        if(sbAlternate == null || sbAlternate.Color != alternateColor) {
+                                            if(sbAlternate != null) {
+                                                sbAlternate.Dispose();
+                                            }
+                                            sbAlternate = new SolidBrush(alternateColor);
                                         }
                                         graphics.FillRectangle(sbAlternate, structure.nmcd.rc.ToRectangle());
                                     }
@@ -539,6 +551,7 @@ namespace QTTabBarLib {
                             else {
                                 rc.left += 0x10;
                             }
+                            Color alternateColor = enableAlternating ? Config.Tweaks.AltRowBackgroundColor : SystemColors.Window;
                             bool flag4 = false;
                             bool flag5 = Config.Tweaks.DetailsGridLines;
                             bool flag6 = Config.Tweaks.ToggleFullRowSelect ^ !QTUtility.IsXP;
@@ -555,8 +568,11 @@ namespace QTTabBarLib {
                             IntPtr ptr3 = Marshal.AllocHGlobal(Marshal.SizeOf(lvitem));
                             Marshal.StructureToPtr(lvitem, ptr3, false);
                             PInvoke.SendMessage(ListViewController.Handle, LVM.GETITEM, IntPtr.Zero, ptr3);
-                            if(sbAlternate == null) {
-                                sbAlternate = new SolidBrush(Config.Tweaks.AltRowBackgroundColor);
+                            if(sbAlternate == null || sbAlternate.Color != alternateColor) {
+                                if(sbAlternate != null) {
+                                    sbAlternate.Dispose();
+                                }
+                                sbAlternate = new SolidBrush(alternateColor);
                             }
                             using(Graphics graphics2 = Graphics.FromHdc(structure.nmcd.hdc)) {
                                 Rectangle rect = rc.ToRectangle();
@@ -608,7 +624,8 @@ namespace QTTabBarLib {
                                     }
                                 }
                                 else {
-                                    graphics2.FillRectangle(sbAlternate, rect);
+                                    Brush backgroundBrush = enableAlternating ? (Brush)sbAlternate : SystemBrushes.Window;
+                                    graphics2.FillRectangle(backgroundBrush, rect);
                                 }
                                 if(QTUtility.IsXP && ((structure.iSubItem == 0) || flag6)) {
                                     flag4 = (iListViewItemState & 8) == 8;
@@ -809,9 +826,12 @@ namespace QTTabBarLib {
             try {
                 using(IDLWrapper wrapper = ShellBrowser.GetItem(index)) {
                     string path = wrapper != null ? wrapper.Path : null;
+                    info.Path = path;
                     if(!string.IsNullOrEmpty(path)) {
-                        info.TextColor = TagManager.GetTagColorForPath(path);
-                        info.HasTag = info.TextColor.HasValue || TagManager.HasTags(path);
+                        TagVisualState state = TagManager.GetVisualState(path);
+                        info.TextColor = state.ForegroundColor;
+                        info.HasTag = state.HasTag;
+                        info.VisualHash = state.VisualHash;
                     }
                 }
             }
@@ -827,10 +847,58 @@ namespace QTTabBarLib {
             return ControlPaint.LightLight(baseColor);
         }
 
+        private void TagManager_TagVisualChanged(object sender, TagVisualChangedEventArgs e) {
+            if(e == null) {
+                e = TagVisualChangedEventArgs.Global;
+            }
+            bool requireRefresh = e.RequiresFullRefresh;
+            if(tagInfoCache != null) {
+                if(e.RequiresFullRefresh) {
+                    if(tagInfoCache.Count > 0) {
+                        tagInfoCache.Clear();
+                    }
+                }
+                else {
+                    List<int> toRemove = null;
+                    foreach(KeyValuePair<int, TagVisualInfo> entry in tagInfoCache) {
+                        string cachedPath = entry.Value.Path;
+                        if(string.IsNullOrEmpty(cachedPath)) {
+                            continue;
+                        }
+                        if(e.AffectsPath(cachedPath)) {
+                            if(toRemove == null) {
+                                toRemove = new List<int>();
+                            }
+                            toRemove.Add(entry.Key);
+                        }
+                    }
+                    if(toRemove != null) {
+                        foreach(int key in toRemove) {
+                            tagInfoCache.Remove(key);
+                        }
+                        requireRefresh = true;
+                    }
+                }
+            }
+            if(requireRefresh && ListViewController != null && ListViewController.Handle != IntPtr.Zero) {
+                PInvoke.InvalidateRect(ListViewController.Handle, IntPtr.Zero, true);
+            }
+        }
+
         private void InvalidateTagInfoCache() {
             if(tagInfoCache != null) {
                 tagInfoCache.Clear();
             }
+        }
+
+        public override void Dispose(bool fDisposing) {
+            if(fDisposing) {
+                try {
+                    TagManager.TagVisualChanged -= TagManager_TagVisualChanged;
+                }
+                catch { }
+            }
+            base.Dispose(fDisposing);
         }
 
         private SolidBrush GetCompareBrush(Color color) {
