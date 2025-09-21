@@ -37,7 +37,7 @@ namespace QTTabBarLib {
         private static Font fontSubText;
         private static RectangleF rctMeasure = new RectangleF(0f, 0f, 512f, 50f);
         
-        // 标签字体
+        // 签
         public static Font TabFont {
             set {
                 if(font != null) {
@@ -52,7 +52,7 @@ namespace QTTabBarLib {
             }
         }
 
-        // 标签事件
+        // 签录
         [field: NonSerialized]
         public event EventHandler Closed;
 
@@ -69,6 +69,12 @@ namespace QTTabBarLib {
         private string titleText;
         [NonSerialized]
         private QTabControl Owner;
+        [NonSerialized]
+        private System.Drawing.Color? tagTextColor;
+        [NonSerialized]
+        internal string GroupKey;
+        [NonSerialized]
+        internal bool CollapsedByGroup;
         
         // Auto-props
         public List<LogData> Branches { get; private set; }
@@ -81,6 +87,12 @@ namespace QTTabBarLib {
         public SizeF TitleTextSize { get; private set; }
         public string ToolTipText { get; set; }
         public bool Underline { get; set; }
+
+        internal Color? TagTextColor {
+            get {
+                return tagTextColor;
+            }
+        }
 
         // Props
         public string ImageKey {
@@ -140,6 +152,7 @@ namespace QTTabBarLib {
                     currentPath = value;
                     ImageKey = value;
                 }
+                UpdateTagColor();
             }
         }
 
@@ -329,11 +342,11 @@ namespace QTTabBarLib {
             return addressArray;
         }
         /**
-         * 获取文本的大小
+         * 取谋拇小
          */
         private static SizeF GetTextSize(string str, Graphics g, bool fTitle) {
             SizeF sizeF; 
-            // fix bug 参数无效    
+            // fix bug 效    
             if ( !String.IsNullOrEmpty( str )  ) {
                 CharacterRange[] ranges = new CharacterRange[] { new CharacterRange(0, str.Length) };
                 sfMeasure.SetMeasurableCharacterRanges(ranges);
@@ -356,6 +369,16 @@ namespace QTTabBarLib {
                 CurrentPath = data.Path;
             }
             return data;
+        }
+
+        internal void UpdateTagColor(bool refreshOwner = true) {
+            Color? newColor = string.IsNullOrEmpty(currentPath) ? (Color?)null : TagManager.GetTagColorForPath(currentPath);
+            if(tagTextColor != newColor) {
+                tagTextColor = newColor;
+                if(refreshOwner && Owner != null) {
+                    Owner.Invalidate(TabBounds);
+                }
+            }
         }
 
         public LogData GoForward() {

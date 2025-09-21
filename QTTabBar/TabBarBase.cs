@@ -32,6 +32,7 @@ namespace QTTabBarLib
         protected ToolStripMenuItem tsmiCreateGroup;
         protected ToolStripMenuItem tsmiCreateWindow;
         protected ToolStripMenuItem tsmiExecuted;
+        protected ToolStripMenuItem tsmiExplorerContext;
         protected ToolStripMenuItem tsmiGroups;
         protected ToolStripMenuItem tsmiHistory;
         protected ToolStripMenuItem tsmiLastActiv;
