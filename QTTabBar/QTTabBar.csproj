@@ -467,6 +467,7 @@
     <Compile Include="Interop\MOUSEHOOKSTRUCT.cs" />
     <Compile Include="Interop\MOUSEHOOKSTRUCTEX.cs" />
     <Compile Include="Interop\NMCUSTOMDRAW.cs" />
+    <Compile Include="Interop\NMTVCUSTOMDRAW.cs" />
     <Compile Include="Interop\NMHDR.cs" />
     <Compile Include="Interop\NMITEMACTIVATE.cs" />
     <Compile Include="Interop\NMLISTVIEW.cs" />
@@ -530,6 +531,7 @@
     <Compile Include="OperationLedgerManager.cs" />
     <Compile Include="ShellZip.cs" />
     <Compile Include="GitStatusManager.cs" />
+    <Compile Include="GitStatusKind.cs" />
     <Compile Include="TimelineManager.cs" />
     <Compile Include="SessionSnapshotManager.cs" />
     <Compile Include="TimelineForm.cs">
@@ -553,6 +555,9 @@
     <Compile Include="CompareOverlayManager.cs" />
     <Compile Include="TagManager.cs" />
     <Compile Include="TagsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="TagColorEditorForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="RecentOpenedTabsManager.cs" />

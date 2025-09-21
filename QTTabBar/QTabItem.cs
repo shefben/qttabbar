@@ -62,11 +62,15 @@ namespace QTTabBarLib {
         private Dictionary<string, Address[]> dicSelectedItems;
         private bool fNowSlowTip;
         private string imageKey = string.Empty;
+        [NonSerialized]
+        private string baseImageKey = string.Empty;
         private Stack<LogData> stckHistoryBackward;
         private Stack<LogData> stckHistoryForward;
         private bool tabLocked;
         private string shellToolTip;
         private string titleText;
+        [NonSerialized]
+        private GitStatusKind gitStatus;
         [NonSerialized]
         private QTabControl Owner;
         [NonSerialized]
@@ -101,11 +105,15 @@ namespace QTTabBarLib {
             }
             set {
                 if(Owner != null && Owner.DrawFolderImage && !string.IsNullOrEmpty(value)) {
-                    imageKey = QTUtility.GetImageKey(value, null);
+                    string resolved = QTUtility.GetImageKey(value, null);
+                    baseImageKey = resolved;
+                    imageKey = resolved;
                 }
                 else {
+                    baseImageKey = value;
                     imageKey = value;
                 }
+                gitStatus = GitStatusKind.None;
             }
         }
 
@@ -378,6 +386,38 @@ namespace QTTabBarLib {
                 if(refreshOwner && Owner != null) {
                     Owner.Invalidate(TabBounds);
                 }
+            }
+        }
+
+        internal string GetBaseImageKey() {
+            if(string.IsNullOrEmpty(baseImageKey)) {
+                return imageKey;
+            }
+            return baseImageKey;
+        }
+
+        internal void SetGitStatus(GitStatusKind status, string overlayKey) {
+            if(gitStatus == status) {
+                if(status == GitStatusKind.None) {
+                    if(!string.IsNullOrEmpty(baseImageKey) && imageKey == baseImageKey) {
+                        return;
+                    }
+                }
+                else if(!string.IsNullOrEmpty(overlayKey) && imageKey == overlayKey) {
+                    return;
+                }
+            }
+            gitStatus = status;
+            if(status == GitStatusKind.None || string.IsNullOrEmpty(overlayKey)) {
+                if(!string.IsNullOrEmpty(baseImageKey)) {
+                    imageKey = baseImageKey;
+                }
+            }
+            else {
+                imageKey = overlayKey;
+            }
+            if(Owner != null && Owner.DrawFolderImage) {
+                Owner.Invalidate(TabBounds);
             }
         }
 

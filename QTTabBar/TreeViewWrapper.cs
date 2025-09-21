@@ -16,6 +16,7 @@
 //    along with QTTabBar.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -31,6 +32,7 @@ namespace QTTabBarLib {
         private NativeWindowController treeController;
         private NativeWindowController parentController;
         private bool fPreventSelChange;
+        private readonly Dictionary<IntPtr, Color?> tagColorCache = new Dictionary<IntPtr, Color?>();
 
         public TreeViewWrapper(IntPtr hwnd, INameSpaceTreeControl treeControl) {
             QTUtility2.log("TreeViewWrapper init");
@@ -91,6 +93,7 @@ namespace QTTabBarLib {
                         Marshal.ReleaseComObject(treeControl);
                         treeControl = null;
                     }
+                    tagColorCache.Clear();
                     break;
             }
             return false;
@@ -98,9 +101,15 @@ namespace QTTabBarLib {
 
         private bool ParentControl_MessageCaptured(ref Message msg) {
             if(msg.Msg == WM.NOTIFY) {
-                
+
                 NMHDR nmhdr = (NMHDR)Marshal.PtrToStructure(msg.LParam, typeof(NMHDR));
                 switch(nmhdr.code) {
+                    case -12: /* NM_CUSTOMDRAW */
+                        if(HandleCustomDraw(ref msg)) {
+                            return true;
+                        }
+                        break;
+
                     case -2: /* NM_CLICK */
                         if(Control.ModifierKeys != Keys.None) {
                             QTUtility2.log("TreeViewWrapper ParentControl_MessageCaptured WM.NOTIFY NM_CLICK");
@@ -124,6 +133,83 @@ namespace QTTabBarLib {
                 }
             }
             return false;
+        }
+
+        private bool HandleCustomDraw(ref Message msg) {
+            NMTVCUSTOMDRAW draw = (NMTVCUSTOMDRAW)Marshal.PtrToStructure(msg.LParam, typeof(NMTVCUSTOMDRAW));
+            switch(draw.nmcd.dwDrawStage) {
+                case CDDS.PREPAINT:
+                    msg.Result = (IntPtr)CDRF.NOTIFYITEMDRAW;
+                    return true;
+
+                case CDDS.ITEMPREPAINT:
+                    Color? textColor = ResolveTagColor(draw);
+                    if(textColor.HasValue) {
+                        draw.clrText = QTUtility2.MakeCOLORREF(textColor.Value);
+                        Marshal.StructureToPtr(draw, msg.LParam, false);
+                        msg.Result = (IntPtr)CDRF.NEWFONT;
+                        return true;
+                    }
+                    break;
+            }
+            msg.Result = IntPtr.Zero;
+            return false;
+        }
+
+        private Color? ResolveTagColor(NMTVCUSTOMDRAW draw) {
+            IntPtr handle = draw.nmcd.dwItemSpec;
+            Color? cached;
+            if(tagColorCache.TryGetValue(handle, out cached)) {
+                return cached;
+            }
+            Color? color = null;
+            string path = TryGetPathFromDraw(draw);
+            if(!string.IsNullOrEmpty(path)) {
+                color = TagManager.GetTagColorForPath(path);
+            }
+            tagColorCache[handle] = color;
+            return color;
+        }
+
+        private string TryGetPathFromDraw(NMTVCUSTOMDRAW draw) {
+            if(treeControl == null) {
+                return null;
+            }
+            Point pt = new Point((draw.nmcd.rc.left + draw.nmcd.rc.right) / 2, (draw.nmcd.rc.top + draw.nmcd.rc.bottom) / 2);
+            IShellItem item = null;
+            try {
+                if(treeControl.HitTest(ref pt, out item) == 0 && item != null) {
+                    IntPtr pidl;
+                    if(PInvoke.SHGetIDListFromObject(item, out pidl) == 0) {
+                        try {
+                            using(IDLWrapper wrapper = new IDLWrapper(pidl)) {
+                                if(wrapper.Available && wrapper.HasPath) {
+                                    return wrapper.Path;
+                                }
+                            }
+                        }
+                        finally {
+                            if(pidl != IntPtr.Zero) {
+                                PInvoke.CoTaskMemFree(pidl);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            finally {
+                if(item != null) {
+                    Marshal.ReleaseComObject(item);
+                }
+            }
+            return null;
+        }
+
+        internal void RefreshTagColors() {
+            tagColorCache.Clear();
+            if(treeController != null && treeController.Handle != IntPtr.Zero) {
+                PInvoke.InvalidateRect(treeController.Handle, IntPtr.Zero, true);
+            }
         }
 
         #region IDisposable Members

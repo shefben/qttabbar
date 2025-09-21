@@ -6,8 +6,6 @@ using System.Windows.Forms;
 
 namespace QTTabBarLib {
     internal class TagsForm : Form {
-        private static Color? lastPickedColor;
-
         private readonly TextBox txtTags = new TextBox();
         private readonly Button btnApply = new Button();
         private readonly Button btnClose = new Button();
@@ -57,21 +55,25 @@ namespace QTTabBarLib {
                 return;
             }
 
-            Dictionary<string, Color> pendingColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Color?> initialColors = new Dictionary<string, Color?>(StringComparer.OrdinalIgnoreCase);
             foreach(string tag in parsedTags) {
                 Color existing;
                 if(TagManager.TryGetTagColor(tag, out existing) && existing != Color.Empty) {
-                    continue;
+                    initialColors[tag] = existing;
                 }
-                if(!PromptForColor(tag, out existing)) {
-                    return;
+                else {
+                    initialColors[tag] = null;
                 }
-                pendingColors[tag] = existing;
+            }
+
+            Dictionary<string, Color?> updatedColors;
+            if(!TagColorEditorForm.TryEditColors(this, parsedTags, initialColors, out updatedColors)) {
+                return;
             }
 
             try {
                 TagManager.AddTags(targets, parsedTags);
-                foreach(KeyValuePair<string, Color> pair in pendingColors) {
+                foreach(KeyValuePair<string, Color?> pair in updatedColors) {
                     TagManager.SetTagColor(pair.Key, pair.Value);
                 }
                 Close();
@@ -91,21 +93,5 @@ namespace QTTabBarLib {
             }
         }
 
-        private bool PromptForColor(string tag, out Color color) {
-            color = Color.Empty;
-            using(ColorDialog dialog = new ColorDialog()) {
-                dialog.FullOpen = true;
-                if(lastPickedColor.HasValue) {
-                    dialog.Color = lastPickedColor.Value;
-                }
-                dialog.CustomColors = null;
-                if(dialog.ShowDialog(this) != DialogResult.OK) {
-                    return false;
-                }
-                color = dialog.Color;
-                lastPickedColor = color;
-                return true;
-            }
-        }
     }
 }
