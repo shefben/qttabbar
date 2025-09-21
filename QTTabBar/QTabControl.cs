@@ -46,7 +46,7 @@ namespace QTTabBarLib {
         private bool fForceClassic;
         private bool fLimitSize;
         private bool fNeedToDrawUpDown;
-        // ÊÇ·ñÌí¼ÓÐÂÔö°´Å¥
+        // Ç·Å¥
         private bool fNeedPlusButton;
         private bool fNowMouseIsOnCloseBtn;
         private bool fNowMouseIsOnIcon;
@@ -90,6 +90,10 @@ namespace QTTabBarLib {
         private ToolTip toolTip;
         private UpDown upDown;
         private const int UPDOWN_WIDTH = 0x24;
+        private const int GROUP_INDICATOR_WIDTH = 12;
+        private const int GROUP_INDICATOR_HEIGHT = 12;
+        private const int GROUP_INDICATOR_SPACING = 4;
+        private readonly Dictionary<string, TabGroupState> groupStates = new Dictionary<string, TabGroupState>(StringComparer.OrdinalIgnoreCase);
 
         [ThreadStatic()]
         private static VisualStyleRenderer vsr_LHot;
@@ -109,7 +113,7 @@ namespace QTTabBarLib {
         [ThreadStatic()]
         private static VisualStyleRenderer vsr_RPressed;
 
-        public event QTabCancelEventHandler CloseButtonClicked; // ¹Ø±ÕÊÂ¼þ
+        public event QTabCancelEventHandler CloseButtonClicked; // Ø±Â¼
         public event QTabCancelEventHandler Deselecting; 
         public event ItemDragEventHandler ItemDrag;
         public event QTabCancelEventHandler PointedTabChanged;
@@ -118,7 +122,7 @@ namespace QTTabBarLib {
         public event QTabCancelEventHandler Selecting;
         public event QTabCancelEventHandler TabCountChanged;
         public event QTabCancelEventHandler TabIconMouseDown;
-        // À¶É«°´Å¥ÊÂ¼þ
+        // É«Å¥Â¼
         public event QTabCancelEventHandler PlusButtonClicked;
 
         public QTabControl() {
@@ -129,21 +133,21 @@ namespace QTTabBarLib {
                      ControlStyles.ResizeRedraw | 
                      ControlStyles.UserPaint, true);*/
             
-            // ControlStyles.UserPaint//Ê¹ÓÃ×Ô¶¨ÒåµÄ»æÖÆ·½Ê½
-            // |ControlStyles.ResizeRedraw//µ±¿Ø¼þ´óÐ¡·¢Éú±ä»¯Ê±¾ÍÖØÐÂ»æÖÆ
-            // |ControlStyles.SupportsTransparentBackColor//Ôò¿Ø¼þ½ÓÊÜ alpha ×é¼þÊýÐ¡ÓÚ 255 ¸öµÄ BackColor À´Ä£ÄâÍ¸Ã÷¶È
-            // | ControlStyles.AllPaintingInWmPaint//Ôò¿Ø¼þºöÂÔ´°¿ÚÏûÏ¢ WM_ERASEBKGND ÒÔ¼õÉÙÉÁË¸
-            // | ControlStyles.OptimizedDoubleBuffer//Ôò¿Ø¼þ½«Ê×ÏÈ»æÖÆµ½»º³åÇø¶ø²»ÊÇÖ±½Ó»æÖÆµ½ÆÁÄ»£¬Õâ¿ÉÒÔ¼õÉÙÉÁË¸
+            // ControlStyles.UserPaint//Ê¹Ô¶Ä»Æ·Ê½
+            // |ControlStyles.ResizeRedraw//Ø¼Ð¡ä»¯Ê±Â»
+            // |ControlStyles.SupportsTransparentBackColor//Ø¼ alpha Ð¡ 255  BackColor Ä£Í¸
+            // | ControlStyles.AllPaintingInWmPaint//Ø¼Ô´Ï¢ WM_ERASEBKGND Ô¼Ë¸
+            // | ControlStyles.OptimizedDoubleBuffer//Ø¼È»ÆµÖ±Ó»ÆµÄ»Ô¼Ë¸
        
-            // ³õÊ¼»¯Ö®Ç°½øÐÐ»ñÈ¡Ò»´Î°µºÚÄ£Ê½
+            // Ê¼Ö®Ç°Ð»È¡Ò»Î°Ä£Ê½
             QTUtility.InNightMode = QTUtility.getNightMode();
 
             SetStyle(ControlStyles.UserPaint
                      | ControlStyles.OptimizedDoubleBuffer 
-                     | ControlStyles.ResizeRedraw//µ±¿Ø¼þ´óÐ¡·¢Éú±ä»¯Ê±¾ÍÖØÐÂ»æÖÆ
-                     | ControlStyles.AllPaintingInWmPaint //Ôò¿Ø¼þºöÂÔ´°¿ÚÏûÏ¢ WM_ERASEBKGND ÒÔ¼õÉÙÉÁË¸
-                     | ControlStyles.SupportsTransparentBackColor//Ôò¿Ø¼þ½ÓÊÜ alpha ×é¼þÊýÐ¡ÓÚ 255 ¸öµÄ BackColor À´Ä£ÄâÍ¸Ã÷¶È
-                     | ControlStyles.OptimizedDoubleBuffer //Ôò¿Ø¼þ½«Ê×ÏÈ»æÖÆµ½»º³åÇø¶ø²»ÊÇÖ±½Ó»æÖÆµ½ÆÁÄ»£¬Õâ¿ÉÒÔ¼õÉÙÉÁË¸
+                     | ControlStyles.ResizeRedraw//Ø¼Ð¡ä»¯Ê±Â»
+                     | ControlStyles.AllPaintingInWmPaint //Ø¼Ô´Ï¢ WM_ERASEBKGND Ô¼Ë¸
+                     | ControlStyles.SupportsTransparentBackColor//Ø¼ alpha Ð¡ 255  BackColor Ä£Í¸
+                     | ControlStyles.OptimizedDoubleBuffer //Ø¼È»ÆµÖ±Ó»ÆµÄ»Ô¼Ë¸
             , value : true);
 
             /*this.SetStyle(ControlStyles.UserPaint |
@@ -155,8 +159,8 @@ namespace QTTabBarLib {
             tabPages = new QTabCollection(this);
             
             sfTypoGraphic = StringFormat.GenericTypographic;
-            // MeasureTrailingSpaces °üÀ¨Ã¿Ò»ÐÐ½áÎ²´¦µÄÎ²Ëæ¿Õ¸ñ¡£ ÔÚÄ¬ÈÏÇé¿öÏÂ£¬MeasureString ·½·¨·µ»ØµÄ±ß½ç¾ØÐÎ¶¼½«ÅÅ³ýÃ¿Ò»ÐÐ½áÎ²´¦µÄ¿Õ¸ñ¡£ ÉèÖÃ´Ë±ê¼ÇÒÔ±ãÔÚ²â¶¨Ê±½«¿Õ¸ñ°üÀ¨½øÈ¥¡£
-            // NoWrap ÔÚ¾ØÐÎÄÚÉèÖÃ¸ñÊ½Ê±£¬½ûÓÃ×Ô¶¯»»ÐÐ¹¦ÄÜ¡£ µ±´«µÝµÄÊÇµã¶ø²»ÊÇ¾ØÐÎÊ±£¬»òÕßÖ¸¶¨¾ØÐÎµÄÐÐ³¤¶ÈÎªÁãÊ±£¬ÒÑÒþº¬´Ë±ê¼Ç¡£
+            // MeasureTrailingSpaces Ã¿Ò»Ð½Î²Î²Õ¸ Ä¬Â£MeasureString ØµÄ±ß½Î¶Å³Ã¿Ò»Ð½Î²Ä¿Õ¸ Ã´Ë±Ô±Ú²â¶¨Ê±Õ¸È¥
+            // NoWrap Ú¾Ã¸Ê½Ê±Ô¶Ð¹Ü¡ ÝµÇµÇ¾Ê±Ö¸ÎµÐ³ÎªÊ±Ë±Ç¡
             sfTypoGraphic.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces | StringFormatFlags.NoWrap;
             sfTypoGraphic.LineAlignment = StringAlignment.Far;  // StringAlignment.Center StringAlignment.Near StringAlignment.Far
             sfTypoGraphic.Trimming = StringTrimming.EllipsisCharacter;
@@ -190,9 +194,9 @@ namespace QTTabBarLib {
             }*/
             // brshActive = new SolidBrush(colorSet[0]);
             // brshInactv = new SolidBrush(colorSet[1]);
-            // ÊÊÅä°µºÚ by indiff dark mode
-            /*brshActive = new SolidBrush(Config.Skin.TabTextActiveColor);  // ±êÇ©¼¤»î»­Ë¢
-            brshInactv = new SolidBrush(Config.Skin.TabTextInactiveColor); // ±êÇ©·Ç¼¤»î»­Ë¢
+            // ä°µ by indiff dark mode
+            /*brshActive = new SolidBrush(Config.Skin.TabTextActiveColor);  // Ç©î»­Ë¢
+            brshInactv = new SolidBrush(Config.Skin.TabTextInactiveColor); // Ç©Ç¼î»­Ë¢
             if (QTUtility.InNightMode)
             {
                 BackColor = Config.Skin.TabShadActiveColor;
@@ -214,7 +218,7 @@ namespace QTTabBarLib {
             {
                 this.BackColor = SystemColors.Window;
             }*/
-            // ¶¨Ê±Æ÷À´Ö§³ÖË«»÷ÊÂ¼þ
+            // Ê±Ö§Ë«Â¼
             timerSuppressDoubleClick = new Timer(components);
             timerSuppressDoubleClick.Interval = SystemInformation.DoubleClickTime + 100;
             timerSuppressDoubleClick.Tick += timerSuppressDoubleClick_Tick;
@@ -230,7 +234,7 @@ namespace QTTabBarLib {
                 this.colorSet = new Color[5]
                 {
                     Config.Skin.TabTextActiveColor,
-                    Config.Skin.TabShadInactiveColor,
+                    Config.Skin.TabTextInactiveColor,
                     Config.Skin.TabTextActiveColor, // Config.TabHiliteColor,
                     ShellColors.TextShadow,
                     ShellColors.Default,
@@ -239,7 +243,7 @@ namespace QTTabBarLib {
                 this.colorSet = new Color[5]
                 {
                     Config.Skin.TabTextActiveColor,
-                    Config.Skin.TabShadInactiveColor,
+                    Config.Skin.TabTextInactiveColor,
                     Config.Skin.TabTextActiveColor, // Config.TabHiliteColor,
                     Config.Skin.TabShadActiveColor,
                     Config.Skin.TabShadInactiveColor
@@ -290,181 +294,207 @@ namespace QTTabBarLib {
         private bool CalculateItemRectangle() {
             int x = 0;
             int count = tabPages.Count;
+            int height = itemSize.Height;
+            List<QTabItem> visibleTabs = new List<QTabItem>();
+            foreach(TabGroupState state in groupStates.Values) {
+                state.AnchorBounds = Rectangle.Empty;
+                state.IndicatorBounds = Rectangle.Empty;
+            }
             if(sizeMode == TabSizeMode.Fixed) {
                 for(int i = 0; i < count; i++) {
-                    tabPages[i].TabBounds = new Rectangle(x, 0, itemSize.Width, itemSize.Height);
-                    tabPages[i].Edge = 0;
-                    x += itemSize.Width;
+                    QTabItem tab = tabPages[i];
+                    LayoutSingleRowTab(tab, ref x, height, itemSize.Width, visibleTabs);
                 }
             }
             else {
-                int width;
-                if(fLimitSize) {
-                    for(int j = 0; j < count; j++) {
-                        width = tabPages[j].TabBounds.Width;
+                for(int i = 0; i < count; i++) {
+                    QTabItem tab = tabPages[i];
+                    int width = tab.TabBounds.Width;
+                    if(fLimitSize) {
                         if(width > maxAllowedTabWidth) {
                             width = maxAllowedTabWidth;
                         }
                         if(width < minAllowedTabWidth) {
                             width = minAllowedTabWidth;
                         }
-                        tabPages[j].TabBounds = new Rectangle(x, 0, width, itemSize.Height);
-                        tabPages[j].Edge = 0;
-                        x += width;
                     }
-                }
-                else {
-                    for(int k = 0; k < count; k++) {
-                        width = tabPages[k].TabBounds.Width;
-                        tabPages[k].TabBounds = new Rectangle(x, 0, width, itemSize.Height);
-                        tabPages[k].Edge = 0;
-                        x += width;
-                    }
+                    LayoutSingleRowTab(tab, ref x, height, width, visibleTabs);
                 }
             }
-            if(tabPages.Count > 1) {
-                tabPages[0].Edge = Edges.Left;
-                tabPages[tabPages.Count - 1].Edge = Edges.Right;
+            if(visibleTabs.Count > 0) {
+                visibleTabs[0].Edge = Edges.Left;
+                visibleTabs[visibleTabs.Count - 1].Edge = Edges.Right;
             }
             return (x > (Width - 0x24));
         }
+
+        private void LayoutSingleRowTab(QTabItem tab, ref int x, int height, int width, List<QTabItem> visibleTabs) {
+            bool isLeader;
+            TabGroupState state;
+            bool inGroup = TryGetGroupState(tab, out state, out isLeader);
+            tab.Edge = 0;
+            tab.Row = 0;
+            tab.TabBounds = Rectangle.Empty;
+            if(inGroup && isLeader) {
+                ReserveGroupIndicator(state, ref x, 0, height);
+            }
+            if(inGroup && state.IsCollapsed) {
+                return;
+            }
+            if(tab.CollapsedByGroup) {
+                return;
+            }
+            if(width < 0) {
+                width = 0;
+            }
+            tab.TabBounds = new Rectangle(x, 0, width, height);
+            x += width;
+            visibleTabs.Add(tab);
+        }
+
 
         private void CalculateItemRectangle_MultiRows() {
             int x = 0;
             int count = tabPages.Count;
             int width = Width;
-            int num4 = itemSize.Width;
+            int fixedWidth = itemSize.Width;
             int height = itemSize.Height;
-            int num6 = height - 3;
-            int num7 = 0;
-            int num8 = 0;
-            if(sizeMode == TabSizeMode.Fixed) {  // ¹Ì¶¨¿í¶È
-                for(int i = 0; i < count; i++) {
-                    if((x + num4) > width) {
-                        num7++;
-                        x = 0;
+            int rowStride = height - 3;
+            int currentRow = 0;
+            int selectedRow = 0;
+            Dictionary<int, List<QTabItem>> rowTabs = new Dictionary<int, List<QTabItem>>();
+            foreach(TabGroupState state in groupStates.Values) {
+                state.AnchorBounds = Rectangle.Empty;
+                state.IndicatorBounds = Rectangle.Empty;
+            }
+            for(int i = 0; i < count; i++) {
+                QTabItem tab = tabPages[i];
+                int tabWidth = (sizeMode == TabSizeMode.Fixed) ? fixedWidth : tab.TabBounds.Width;
+                if(sizeMode != TabSizeMode.Fixed && fLimitSize) {
+                    if(tabWidth > maxAllowedTabWidth) {
+                        tabWidth = maxAllowedTabWidth;
                     }
-                    tabPages[i].TabBounds = new Rectangle(x, num6 * num7, num4, height);
-                    tabPages[i].Row = num7;
-                    if(x == 0) {
-                        tabPages[i].Edge = Edges.Left;
-                    }
-                    else if((i == (count - 1)) || (((x + num4) + num4) > width)) {
-                        tabPages[i].Edge = Edges.Right;
-                    }
-                    else {
-                        tabPages[i].Edge = 0;
-                    }
-                    x += num4;
-                    if(i == iSelectedIndex) {
-                        num8 = num7;
+                    if(tabWidth < minAllowedTabWidth) {
+                        tabWidth = minAllowedTabWidth;
                     }
                 }
+                bool isLeader;
+                TabGroupState state;
+                bool inGroup = TryGetGroupState(tab, out state, out isLeader);
+                bool collapsed = (inGroup && state.IsCollapsed) || tab.CollapsedByGroup;
+                int indicatorWidth = (inGroup && isLeader) ? GROUP_INDICATOR_WIDTH + GROUP_INDICATOR_SPACING : 0;
+                int requiredWidth = indicatorWidth + (collapsed ? 0 : tabWidth);
+                if(requiredWidth > 0 && (x + requiredWidth) > width) {
+                    currentRow++;
+                    x = 0;
+                }
+                int y = rowStride * currentRow;
+                if(inGroup && isLeader) {
+                    ReserveGroupIndicator(state, ref x, y, height);
+                }
+                tab.Row = currentRow;
+                tab.Edge = 0;
+                tab.TabBounds = Rectangle.Empty;
+                if(i == iSelectedIndex) {
+                    selectedRow = currentRow;
+                }
+                if(collapsed) {
+                    continue;
+                }
+                if(tabWidth < 0) {
+                    tabWidth = 0;
+                }
+                tab.TabBounds = new Rectangle(x, y, tabWidth, height);
+                x += tabWidth;
+                List<QTabItem> rowList;
+                if(!rowTabs.TryGetValue(currentRow, out rowList)) {
+                    rowList = new List<QTabItem>();
+                    rowTabs[currentRow] = rowList;
+                }
+                rowList.Add(tab);
             }
-            else {
-                int maxTabWidth;
-                if(fLimitSize) {
-                    for(int j = 0; j < count; j++) {
-                        maxTabWidth = tabPages[j].TabBounds.Width;
-                        if(maxTabWidth > maxAllowedTabWidth) {
-                            maxTabWidth = maxAllowedTabWidth;
-                        }
-                        if(maxTabWidth < minAllowedTabWidth) {
-                            maxTabWidth = minAllowedTabWidth;
-                        }
-                        if((x + maxTabWidth) > width) {
-                            num7++;
-                            x = 0;
-                        }
-                        tabPages[j].TabBounds = new Rectangle(x, num6 * num7, maxTabWidth, height);
-                        tabPages[j].Row = num7;
-                        if(x == 0) {
-                            tabPages[j].Edge = Edges.Left;
-                        }
-                        else if(j == (count - 1)) {
-                            tabPages[j].Edge = Edges.Right;
-                        }
-                        else {
-                            int minTabWidth = tabPages[j + 1].TabBounds.Width;
-                            if(minTabWidth > maxAllowedTabWidth) {
-                                minTabWidth = maxAllowedTabWidth;
-                            }
-                            if(minTabWidth < minAllowedTabWidth) {
-                                minTabWidth = minAllowedTabWidth;
-                            }
-                            if(((x + maxTabWidth) + minTabWidth) > width) {
-                                tabPages[j].Edge = Edges.Right;
+            int maxRowIndex = 0;
+            bool hasRow = false;
+            foreach(int row in rowTabs.Keys) {
+                if(!hasRow || row > maxRowIndex) {
+                    maxRowIndex = row;
+                    hasRow = true;
+                }
+            }
+            if(hasRow && iMultipleType == 1) {
+                int shift = maxRowIndex - selectedRow;
+                if(shift > 0) {
+                    for(int i = 0; i < count; i++) {
+                        QTabItem tab = tabPages[i];
+                        Rectangle bounds = tab.TabBounds;
+                        if(bounds.Width <= 0 && bounds.Height <= 0) {
+                            if(tab.Row > selectedRow) {
+                                tab.Row -= selectedRow + 1;
                             }
                             else {
-                                tabPages[j].Edge = 0;
+                                tab.Row += shift;
                             }
+                            continue;
                         }
-                        x += maxTabWidth;
-                        if(j == iSelectedIndex) {
-                            num8 = num7;
-                        }
-                    }
-                }
-                else {
-                    for(int k = 0; k < count; k++) {
-                        maxTabWidth = tabPages[k].TabBounds.Width;
-                        if((x + maxTabWidth) > width) {
-                            num7++;
-                            x = 0;
-                        }
-                        tabPages[k].TabBounds = new Rectangle(x, num6 * num7, maxTabWidth, height);
-                        tabPages[k].Row = num7;
-                        if(x == 0) {
-                            tabPages[k].Edge = Edges.Left;
-                        }
-                        else if(k == (count - 1)) {
-                            tabPages[k].Edge = Edges.Right;
+                        if(tab.Row > selectedRow) {
+                            tab.Row -= selectedRow + 1;
+                            bounds.Y = tab.Row * rowStride;
                         }
                         else {
-                            int num14 = tabPages[k + 1].TabBounds.Width;
-                            if(((x + maxTabWidth) + num14) > width) {
-                                tabPages[k].Edge = Edges.Right;
-                            }
-                            else {
-                                tabPages[k].Edge = 0;
-                            }
+                            bounds.Y += shift * rowStride;
+                            tab.Row += shift;
                         }
-                        x += maxTabWidth;
-                        if(k == iSelectedIndex) {
-                            num8 = num7;
+                        tab.TabBounds = bounds;
+                    }
+                    rowTabs.Clear();
+                    for(int i = 0; i < count; i++) {
+                        QTabItem tab = tabPages[i];
+                        if(tab.TabBounds.Width <= 0 && tab.TabBounds.Height <= 0) {
+                            continue;
+                        }
+                        List<QTabItem> rowList;
+                        if(!rowTabs.TryGetValue(tab.Row, out rowList)) {
+                            rowList = new List<QTabItem>();
+                            rowTabs[tab.Row] = rowList;
+                        }
+                        rowList.Add(tab);
+                    }
+                    hasRow = false;
+                    maxRowIndex = 0;
+                    foreach(int row in rowTabs.Keys) {
+                        if(!hasRow || row > maxRowIndex) {
+                            maxRowIndex = row;
+                            hasRow = true;
                         }
                     }
                 }
             }
-            if((num7 != 0) && (iMultipleType == 1)) {
-                int num15 = num7 - num8;
-                if(num15 > 0) {
-                    for(int m = 0; m < count; m++) {
-                        QTabItem base2 = tabPages[m];
-                        Rectangle tabBounds = base2.TabBounds;
-                        if(base2.Row > num8) {
-                            base2.Row -= num8 + 1;
-                            tabBounds.Y = base2.Row * num6;
-                            base2.TabBounds = tabBounds;
-                        }
-                        else {
-                            tabBounds.Y += num15 * num6;
-                            base2.TabBounds = tabBounds;
-                            base2.Row += num15;
-                        }
+            foreach(List<QTabItem> row in rowTabs.Values) {
+                row.Sort((a, b) => a.TabBounds.X.CompareTo(b.TabBounds.X));
+                if(row.Count > 0) {
+                    row[0].Edge = Edges.Left;
+                    row[row.Count - 1].Edge = Edges.Right;
+                }
+            }
+            int computedRow = hasRow ? maxRowIndex : 0;
+            if(!hasRow && rowTabs.Count > 0) {
+                foreach(int row in rowTabs.Keys) {
+                    if(row > computedRow) {
+                        computedRow = row;
                     }
                 }
             }
-            if(num7 != iCurrentRow) {
-                iCurrentRow = num7;
+            if(computedRow != iCurrentRow) {
+                iCurrentRow = computedRow;
                 if(RowCountChanged != null) {
                     RowCountChanged(this, new QEventArgs(iCurrentRow + 1));
                 }
             }
         }
 
+
         /**
-         * ±êÇ©ÇÐ»»
+         * Ç©Ð»
          */
         private bool ChangeSelection(QTabItem tabToSelect, int index) {
             if(((Deselecting != null) && (this.iSelectedIndex > -1)) && (this.iSelectedIndex < tabPages.Count)) {
@@ -496,7 +526,7 @@ namespace QTTabBarLib {
                 }
             }
             Refresh();
-            if(SelectedIndexChanged != null) { // Ñ¡ÔñµÄ±êÇ©Ë÷Òý·¢Éú±ä»¯£¬ Ôòµ÷ÓÃ¶ÔÓ¦µÄÊÂ¼þ
+            if(SelectedIndexChanged != null) { // Ñ¡Ä±Ç©ä»¯ Ã¶Ó¦Â¼
                 SelectedIndexChanged(this, new EventArgs());
             }
             iFocusedTabIndex = -1;
@@ -609,7 +639,7 @@ namespace QTTabBarLib {
                   g.DrawRectangle(Pens.Black, new Rectangle(0, 0, rctItem.Width - 1, rctItem.Height - 1));
                   */
                 int num = bSelected ? 0 : 1;
-                if(tabImages == null) { // Èç¹ûÍ¼Æ¬Îª¿Õ
+                if(tabImages == null) { // Í¼Æ¬Îª
                     // g.FillRectangle(rectBrush, rctItem);
                     g.DrawLine(SystemPens.ControlLightLight, 
                         new Point(rctItem.X + 2, rctItem.Y), 
@@ -637,7 +667,7 @@ namespace QTTabBarLib {
                             new Point((rctItem.X + rctItem.Width) + 1,  (rctItem.Y + rctItem.Height) - 1));
                         pen.Dispose();
                     }
-                }  else {  // Èç¹ûÍ¼Æ¬²»Îª¿Õ
+                }  else {  // Í¼Æ¬Îª
                     Bitmap bitmap;
                     if(bSelected) {
                         // QTUtility2.log("tabImages[0] ");
@@ -651,7 +681,7 @@ namespace QTTabBarLib {
                         // QTUtility2.log("tabImages[1] ");
                         bitmap = tabImages[1];
                     }
-                    if(bitmap != null) { // Èç¹ûÍ¼Æ¬²»Îª¿Õ
+                    if(bitmap != null) { // Í¼Æ¬Îª
                                 int left = sizingMargin.Left;
                                 int top = sizingMargin.Top;
                                 int right = sizingMargin.Right;
@@ -671,11 +701,11 @@ namespace QTTabBarLib {
                                     new Rectangle(rctItem.Right - right, rctItem.Bottom - bottom, right, bottom)
                                 };
                                 Rectangle[] rectangleArray2 = new Rectangle[9];
-                                // QTUtility2.log("Í¼Æ¬¾ØÐÎÊý×é 9 ");
+                                // QTUtility2.log("Í¼Æ¬ 9 ");
                                 int width = bitmap.Width;
                                 int height = bitmap.Height;
 
-                                // QTUtility2.log("Í¼Æ¬¿í¶È  " + width + " Í¼Æ¬¸ß¶È  " + height);
+                                // QTUtility2.log("Í¼Æ¬  " + width + " Í¼Æ¬ß¶  " + height);
                                 rectangleArray2[0] = new Rectangle(0, 0, left, top);
                                 rectangleArray2[1] = new Rectangle(left, 0, width - horizontal, top);
                                 rectangleArray2[2] = new Rectangle(width - right, 0, right, top);
@@ -690,14 +720,14 @@ namespace QTTabBarLib {
                                     g.DrawImage(bitmap, rectangleArray[i], rectangleArray2[i], GraphicsUnit.Pixel);
                                 }
                                 // QTUtility2.log("drawbackground by image end");
-                                // bitmap.Dispose(); // ÕâÀïµ¼ÖÂÍ¼Æ¬³ö´í
+                                // bitmap.Dispose(); // ïµ¼Í¼Æ¬
                     }
                 }
             } // !fVisualStyle
             else {
                 VisualStyleRenderer renderer;
                 if(!bSelected) {
-                    // ·ÇÑ¡ÖÐÉèÖÃ renderer
+                    // Ñ¡ renderer
                     if(!fHot && (iPseudoHotIndex != index)) {
                         Edges edges4 = edges;
                         if(edges4 == Edges.Left) {
@@ -784,66 +814,66 @@ namespace QTTabBarLib {
             }
         }
 
-        // 43 ²¹¶¡bug
+        // 43 bug
         /*
          * 
             Message ---
-            Î´½«¶ÔÏóÒýÓÃÉèÖÃµ½¶ÔÏóµÄÊµÀý¡£
+            Î´ÃµÊµ
             HelpLink ---
 
             Source ---
             QTTabBar
 
             StackTrace ---
-               ÔÚ QTTabBarLib.QTabControl.DrawTab(Graphics g, Rectangle itemRct, Int32 index, QTabItem tabHot, Boolean fVisualStyle)
-               ÔÚ QTTabBarLib.QTabControl.OnPaint_MultipleRow(PaintEventArgs e)
+                QTTabBarLib.QTabControl.DrawTab(Graphics g, Rectangle itemRct, Int32 index, QTabItem tabHot, Boolean fVisualStyle)
+                QTTabBarLib.QTabControl.OnPaint_MultipleRow(PaintEventArgs e)
             TargetSite ---
             Void DrawTab(System.Drawing.Graphics, System.Drawing.Rectangle, Int32, QTTabBarLib.QTabItem, Boolean)
          
              Message ---
-            Ë÷Òý³¬³ö·¶Î§¡£±ØÐëÎª·Ç¸ºÖµ²¢Ð¡ÓÚ¼¯ºÏ´óÐ¡¡£
-                       ²ÎÊýÃû: index
+            Î§ÎªÇ¸ÖµÐ¡Ú¼Ï´Ð¡
+                       : index
             HelpLink ---
 
             Source ---
             mscorlib
             StackTrace ---
-                       ÔÚ System.Collections.ArrayList.get_Item(Int32 index)
-                       ÔÚ System.Windows.Forms.ImageList.ImageCollection.IndexOfKey(String key)
-                       ÔÚ System.Windows.Forms.ImageList.ImageCollection.ContainsKey(String key)
-                       ÔÚ QTTabBarLib.QTabControl.DrawTab(Graphics g, Rectangle itemRct, Int32 index, QTabItem tabHot, Boolean fVisualStyle)
+                        System.Collections.ArrayList.get_Item(Int32 index)
+                        System.Windows.Forms.ImageList.ImageCollection.IndexOfKey(String key)
+                        System.Windows.Forms.ImageList.ImageCollection.ContainsKey(String key)
+                        QTTabBarLib.QTabControl.DrawTab(Graphics g, Rectangle itemRct, Int32 index, QTabItem tabHot, Boolean fVisualStyle)
 */
-        // ÔÚÖ¸¶¨±ß¿òÄÚ»æÖÆµ±Ç°ÊÓ¾õÑùÊ½ÔªËØµÄ±³¾°Í¼Ïñ
+        // Ö¸ß¿Ú»ÆµÇ°Ó¾Ê½ÔªØµÄ±Í¼
         private void DrawTab(Graphics g, Rectangle itemRct, int index, QTabItem tabHot, bool fVisualStyle) {
             try
             {
-                Rectangle textRect; // »æÖÆÎÄ±¾ÇøÓò
-                Rectangle rctItem = textRect = itemRct; // ±êÇ©ÇøÓò
-                // Ë÷Òý³¬³ö·¶Î§¡£±ØÐëÎª·Ç¸ºÖµ²¢Ð¡ÓÚ¼¯ºÏ´óÐ¡¡£
-                QTabItem baseTabItem = tabPages[index]; // µ±Ç°µÄ±êÇ©Ïî
-                bool bSelected = iSelectedIndex == index; // ÊÇ·ñÑ¡ÖÐ
-                bool fHot = baseTabItem == tabHot; // ÊÇ·ñÎ´ÈÈµã±êÇ©
-                textRect.X += 2; // xÖáÆ«ÒÆ 2 ÏñËØ
+                Rectangle textRect; // Ä±
+                Rectangle rctItem = textRect = itemRct; // Ç©
+                // Î§ÎªÇ¸ÖµÐ¡Ú¼Ï´Ð¡
+                QTabItem baseTabItem = tabPages[index]; // Ç°Ä±Ç©
+                bool bSelected = iSelectedIndex == index; // Ç·Ñ¡
+                bool fHot = baseTabItem == tabHot; // Ç·Î´ÈµÇ©
+                textRect.X += 2; // xÆ« 2 
                 if(bSelected) {
-                    rctItem.Width += 4; // Èç¹ûÑ¡ÖÐÔò¿í¶È¼Ó¿í 4 ÏñËØ
+                    rctItem.Width += 4; // Ñ¡È¼Ó¿ 4 
                 }
                 else {
-                    rctItem.X += 2;  // ·ÇÑ¡ÖÐ ±êÇ©ÇøÓòxÖáÆ«ÒÆ 2 ÏñËØ
-                    rctItem.Y += 2;  // ·ÇÑ¡ÖÐ ±êÇ©ÇøÓòyÖáÆ«ÒÆ 2 ÏñËØ
-                    rctItem.Height -= 2;  // ·ÇÑ¡ÖÐ ±êÇ©ÇøÓò¸ß¶È»ØËõ 2 ÏñËØ
-                    // textRect.Y += 2; // ·ÇÑ¡ÖÐ ÎÄ±¾ÇøÓòyÖáÆ«ÒÆ 2 ÏñËØ
+                    rctItem.X += 2;  // Ñ¡ Ç©xÆ« 2 
+                    rctItem.Y += 2;  // Ñ¡ Ç©yÆ« 2 
+                    rctItem.Height -= 2;  // Ñ¡ Ç©ß¶È» 2 
+                    // textRect.Y += 2; // Ñ¡ Ä±yÆ« 2 
                 }
                 DrawBackground(g, bSelected, fHot, rctItem, baseTabItem.Edge, fVisualStyle, index);
-                int tabPosYHalfTabHeight = (rctItem.Height - 0x10) / 2; // ±êÇ©YÖá»ØËõ 10 ÏñËØµÄÒ»°ë
+                int tabPosYHalfTabHeight = (rctItem.Height - 0x10) / 2; // Ç©Y 10 ØµÒ»
                 // QTUtility2.log("draw folder image " + fDrawFolderImg +  " baseTabItem.ImageKey " + baseTabItem.ImageKey );
-                // ÅÐ¶ÏÊÇ·ñÊ¹ÓÃÍ¼Æ¬
+                // Ð¶Ç·Ê¹Í¼Æ¬
                 if(fDrawFolderImg && QTUtility.ImageListGlobal.Images.ContainsKey(baseTabItem.ImageKey)) {
-                    // Í¼Æ¬ÇøÓò 0x10 -> 16
+                    // Í¼Æ¬ 0x10 -> 16
                     Rectangle imgRect = new Rectangle(
                         rctItem.X + (bSelected ? 7 : 5), 
                         rctItem.Y + tabPosYHalfTabHeight, 
                         0x10, 
-                        0x10); // 16 ¸ß¶È  * 16 ¿í¶È
+                        0x10); // 16 ß¶  * 16 
                     textRect.X += 0x18;
                     textRect.Width -= 0x18; // 24
                     if((fNowMouseIsOnIcon && (iTabMouseOnButtonsIndex == index)) || (iTabIndexOfSubDirShown == index)) {
@@ -856,9 +886,9 @@ namespace QTTabBarLib {
                         }
                         g.DrawImage(bmpFolIconBG, new Rectangle(imgRect.X - 2, imgRect.Y - 2, imgRect.Width + 4, imgRect.Height + 4));
                     }
-					// »æÖÆ±³¾°Í¼Æ¬
+					// Æ±Í¼Æ¬
                     g.DrawImage(QTUtility.ImageListGlobal.Images[baseTabItem.ImageKey], imgRect);
-					// ÅÐ¶ÏÊÇ·ñ»æÖÆËø¶¨Í¼±ê
+					// Ð¶Ç·Í¼
                     if(Config.Tabs.ShowDriveLetters) {
                         string pathInitial = baseTabItem.PathInitial;
                         if(pathInitial.Length > 0) {
@@ -870,20 +900,20 @@ namespace QTTabBarLib {
                     textRect.X += 4;
                     textRect.Width -= 4;
                 }
-                if(baseTabItem.TabLocked) { // Èç¹ûËø¶¨Ôò»æÖÆËø¶¨Í¼Æ¬
+                if(baseTabItem.TabLocked) { // Í¼Æ¬
                     Rectangle lockRect = new Rectangle(
-                        rctItem.X + (bSelected ? 6 : 4),  // Ñ¡ÖÐÆ«ÒÆ 6 ÏñËØ¡¢·ÇÑ¡ÖÐÆ«ÒÆ 4 ÏñËØ
-                        rctItem.Y + tabPosYHalfTabHeight,  // YÖáÎª±êÇ©Ò»°ë¸ß¶È
+                        rctItem.X + (bSelected ? 6 : 4),  // Ñ¡Æ« 6 Ø¡Ñ¡Æ« 4 
+                        rctItem.Y + tabPosYHalfTabHeight,  // YÎªÇ©Ò»ß¶
                         9, 
                         11); // 9 * 11
-                    if(fDrawFolderImg) { // »æÖÆÎÄ¼þ¼ÐÍ¼Æ¬
-                        lockRect.X += 9;   //  X Æ«ÒÆ 9 ÏñËØ
-                        lockRect.Y += 5;   //  Y Æ«ÒÆ 9 ÏñËØ
+                    if(fDrawFolderImg) { // Ä¼Í¼Æ¬
+                        lockRect.X += 9;   //  X Æ« 9 
+                        lockRect.Y += 5;   //  Y Æ« 9 
                     }
                     else {
-                        lockRect.Y += 2; //  X Æ«ÒÆ 2 ÏñËØ
-                        textRect.X += 10;//  Y Æ«ÒÆ 10 ÏñËØ
-                        textRect.Width -= 10;  // ¿í¶È¼õ10ÏñËØ
+                        lockRect.Y += 2; //  X Æ« 2 
+                        textRect.X += 10;//  Y Æ« 10 
+                        textRect.Width -= 10;  // È¼10
                     }
                     if(bmpLocked == null) {
                         bmpLocked = Resources_Image.imgLocked;
@@ -898,14 +928,14 @@ namespace QTTabBarLib {
                     ((baseTabItem.TitleTextSize.Width + baseTabItem.SubTitleTextSize.Width) + 4f) : 
                     (baseTabItem.TitleTextSize.Width + 2f);
 
-                // ±êÇ©YÖáÆ«ÒÆÎª ÎÄ±¾ÇøÓò¸ß¶È- ÎÄ±¾¸ß¶È  Ò»°ë
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0.993ºÁÃë 2022/10/1 16:57:52  Config.Skin.TabHeight 35
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0ºÁÃë 2022/10/1 16:57:52  textRect.Height 35
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0ºÁÃë 2022/10/1 16:57:52  baseTabItem.TitleTextSize.Height 20
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0ºÁÃë 2022/10/1 16:57:52  textRect.X 26
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0ºÁÃë 2022/10/1 16:57:52  textRect.Y 0
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0ºÁÃë 2022/10/1 16:57:52  textPosX 53.5
-                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0.994ºÁÃë 2022/10/1 16:57:52  textPosY 2.5
+                // Ç©YÆ«Îª Ä±ß¶- Ä±ß¶  Ò»
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0.993 2022/10/1 16:57:52  Config.Skin.TabHeight 35
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0 2022/10/1 16:57:52  textRect.Height 35
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0 2022/10/1 16:57:52  baseTabItem.TitleTextSize.Height 20
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0 2022/10/1 16:57:52  textRect.X 26
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0 2022/10/1 16:57:52  textRect.Y 0
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0 2022/10/1 16:57:52  textPosX 53.5
+                // [log] C:QTabControl M:DrawTab P:12464 T:1 cost:0.994 2022/10/1 16:57:52  textPosY 2.5
                 // QTUtility2.log(" Config.Skin.TabHeight " + Config.Skin.TabHeight);
                 // QTUtility2.log(" textRect.Height " + textRect.Height);
                 // QTUtility2.log(" baseTabItem.TitleTextSize.Height " + baseTabItem.TitleTextSize.Height);
@@ -917,10 +947,10 @@ namespace QTTabBarLib {
                 // QTUtility2.log(" textPosY " + Math.Max(((textRect.Height - baseTabItem.TitleTextSize.Height) / 2f) - 5, 0f));
                 // float textPosY = Math.Max(((textRect.Height - baseTabItem.TitleTextSize.Height) / 2f) - 5 , 0f);
                 // float textPosY = 0;
-                // µ÷ÕûÎª¾ÓÖÐÏÔÊ¾
+                // ÎªÊ¾
                 float textPosY = -(textRect.Height - baseTabItem.TitleTextSize.Height) / 2;
                 // float textPosY = 5f;
-                // Èç¹û±êÇ©ÎÄ±¾¾ÓÖÐÔò¼ÆËã³öÆ«ÒÆÖµ
+                // Ç©Ä±Æ«Öµ
                 float textPosX = (tabTextAlignment == StringAlignment.Center)
                               ? Math.Max(((textRect.Width - textWidth) / 2f), 0f) :
                               0f; 
@@ -929,83 +959,74 @@ namespace QTTabBarLib {
                                             textRect.Y + textPosY,
                                             Math.Min((baseTabItem.TitleTextSize.Width + 2f), (textRect.Width - textPosX)), 
                                             textRect.Height);
-                // »æÖÆÒõÓ°ÇøÓò dark mode
-                if(fDrawShadow)
-                {
-                    
-                    // Color clrTxtColor = bSelected ? colorSet[0] : colorSet[1];
-                    // Color clrShdwColor = bSelected ? colorSet[3] : colorSet[4];
-                    // QTUtility2.log("DrawTextWithShadow1 " + clrTxtColor + " " + clrShdwColor + " InNightMode " + QTUtility.InNightMode);
-                    DrawTextWithShadow(g, 
-                        baseTabItem.Text, 
-                        bSelected ? colorSet[0] : colorSet[1], 
-                        bSelected ? colorSet[3] : colorSet[4], 
-                        (bSelected && fActiveTxtBold) ? 
-                            (baseTabItem.Underline ? fntBold_Underline : fntBold) : 
-                            (baseTabItem.Underline ? fnt_Underline : Font), 
-                        textRct, 
-                        sfTypoGraphic);
-                }
-                else {
-                    // QTUtility2.log("g.DrawString1 color " + brshInactv.Color + " InNightMode " + QTUtility.InNightMode);
-                    if (QTUtility.InNightMode)
-                    {
-                        brshActive = new SolidBrush(Config.Skin.TabTextActiveColor);
-                        brshInactv = new SolidBrush(Config.Skin.TabTextInactiveColor);
-                    }
-                    else
-                    {
-                        brshActive = new SolidBrush(Config.Skin.TabTextActiveColor);
-                        brshInactv = new SolidBrush(Config.Skin.TabTextInactiveColor);
-                    }
-                    g.DrawString(baseTabItem.Text, 
-                            (bSelected && fActiveTxtBold) ? 
-                            (baseTabItem.Underline ? fntBold_Underline : fntBold) : 
-                            (baseTabItem.Underline ? fnt_Underline : Font),
-                            bSelected ? brshActive : brshInactv, textRct, sfTypoGraphic);
-                }
-                if(iFocusedTabIndex == index) {
-                    Rectangle rectangle = rctItem;
-                    rectangle.Inflate(-2, -1);
-                    rectangle.Y++;
-                    rectangle.Width--;
-                    ControlPaint.DrawFocusRectangle(g, rectangle);
-                }
-				// ÊÇ·ñÆôÓÃ±¸×¢¹¦ÄÜ
-                if(isComment && (textRect.Width > baseTabItem.TitleTextSize.Width)) {
-                    // ÉèÖÃÎª¾ÓÖÐµÄÇøÓò, ÎÄ±¾¸ß¶È - ±¸×¢ÎÄ±¾¸ß¶ÈµÄÒ»°ë
-                    // float posY = Math.Max(((textRect.Height - baseTabItem.SubTitleTextSize.Height) / 2f), 0f);
-                    float posY = Math.Max(((textRect.Height - baseTabItem.SubTitleTextSize.Height) / 2f), 0f);
-					// PointF	Ëü±íÊ¾¾ØÐÎÇøÓòµÄ×óÉÏ½Ç
-					// SizeF	Ëü±íÊ¾¾ØÐÎÇøÓòµÄ¿í¶ÈºÍ¸ß¶È¡£
-					// posY = textRect.Y + posY;
-					posY = textRect.Y  - posY; // ÐÞ¸´ÖØÃû±êÇ©³ö´íÂÒÎÊÌâ
-                    // float posY = textRect.Y + Math.Max( baseTabItem.SubTitleTextSize.Height, 0f );
-					RectangleF drawStrRectF = new RectangleF(
-                        textRct.Right, 
-                        posY, 
-                        Math.Min(
-                            (baseTabItem.SubTitleTextSize.Width + 2f),
-                            (textRect.Width - ((baseTabItem.TitleTextSize.Width + textPosX) + 4f))
-                        ), 
-                        textRect.Height);  // ÎÄ±¾ÇøÓò
+                // Ó° dark mode
+                Color textColor = baseTabItem.TagTextColor ?? (bSelected ? colorSet[0] : colorSet[1]);
+                Color shadowColor = baseTabItem.TagTextColor.HasValue ? ControlPaint.Dark(textColor) : (bSelected ? colorSet[3] : colorSet[4]);
+                Font textFont = (bSelected && fActiveTxtBold) ?
+                            (baseTabItem.Underline ? fntBold_Underline : fntBold) :
+                            (baseTabItem.Underline ? fnt_Underline : Font);
+                SolidBrush overrideBrush = null;
+                try {
                     if(fDrawShadow) {
-                        // QTUtility2.log("DrawTextWithShadow2 " + clrTxtColor + " " + clrShdwColor + " InNightMode " + QTUtility.InNightMode);
-                        DrawTextWithShadow(g, 
-                            (fAutoSubText ? "@" : ":") + baseTabItem.Comment, 
-                            bSelected ? colorSet[0] : colorSet[1], 
-                            bSelected ? colorSet[3] : colorSet[4], 
-                            fntSubText, 
-                            drawStrRectF, 
+                        DrawTextWithShadow(g,
+                            baseTabItem.Text,
+                            textColor,
+                            shadowColor,
+                            textFont,
+                            textRct,
                             sfTypoGraphic);
                     }
                     else {
-                        // QTUtility2.log("g.DrawString2 color " + brshInactv.Color + " InNightMode " + QTUtility.InNightMode);
-                        g.DrawString((fAutoSubText ? "@" : ":") + baseTabItem.Comment, 
-                            fntSubText, 
-                            brshInactv, 
-                            drawStrRectF, 
-                            sfTypoGraphic);
+                        Brush mainBrush;
+                        if(baseTabItem.TagTextColor.HasValue) {
+                            overrideBrush = new SolidBrush(textColor);
+                            mainBrush = overrideBrush;
+                        }
+                        else {
+                            mainBrush = bSelected ? brshActive : brshInactv;
+                        }
+                        g.DrawString(baseTabItem.Text, textFont, mainBrush, textRct, sfTypoGraphic);
+                    }
+                    if(iFocusedTabIndex == index) {
+                        Rectangle rectangle = rctItem;
+                        rectangle.Inflate(-2, -1);
+                        rectangle.Y++;
+                        rectangle.Width--;
+                        ControlPaint.DrawFocusRectangle(g, rectangle);
+                    }
+                    if(isComment && (textRect.Width > baseTabItem.TitleTextSize.Width)) {
+                        float posY = Math.Max(((textRect.Height - baseTabItem.SubTitleTextSize.Height) / 2f), 0f);
+                        posY = textRect.Y  - posY;
+                        RectangleF drawStrRectF = new RectangleF(
+                            textRct.Right,
+                            posY,
+                            Math.Min(
+                                (baseTabItem.SubTitleTextSize.Width + 2f),
+                                (textRect.Width - ((baseTabItem.TitleTextSize.Width + textPosX) + 4f))
+                            ),
+                            textRect.Height);
+                        if(fDrawShadow) {
+                            DrawTextWithShadow(g,
+                                (fAutoSubText ? "@" : ":") + baseTabItem.Comment,
+                                baseTabItem.TagTextColor ?? (bSelected ? colorSet[0] : colorSet[1]),
+                                baseTabItem.TagTextColor.HasValue ? ControlPaint.Dark(textColor) : (bSelected ? colorSet[3] : colorSet[4]),
+                                fntSubText,
+                                drawStrRectF,
+                                sfTypoGraphic);
+                        }
+                        else {
+                            Brush commentBrush = overrideBrush ?? brshInactv;
+                            g.DrawString((fAutoSubText ? "@" : ":") + baseTabItem.Comment,
+                                fntSubText,
+                                commentBrush,
+                                drawStrRectF,
+                                sfTypoGraphic);
+                        }
+                    }
+                }
+                finally {
+                    if(overrideBrush != null) {
+                        overrideBrush.Dispose();
                     }
                 }
                 if(fDrawCloseButton && (!fCloseBtnOnHover || fHot)) {
@@ -1117,7 +1138,14 @@ namespace QTTabBarLib {
         }
 
         private Rectangle GetItemRectangle(int index) {
-            Rectangle tabBounds = tabPages[index].TabBounds;
+            if((index < 0) || (index >= tabPages.Count)) {
+                return Rectangle.Empty;
+            }
+            QTabItem tab = tabPages[index];
+            if(tab.CollapsedByGroup) {
+                return Rectangle.Empty;
+            }
+            Rectangle tabBounds = tab.TabBounds;
             if(fNeedToDrawUpDown) {
                 tabBounds.X += iScrollWidth;
             }
@@ -1125,19 +1153,19 @@ namespace QTTabBarLib {
         }
 
         private Rectangle GetItemRectWithInflation(int index) {
-            Rectangle tabBounds = tabPages[index].TabBounds;
+            Rectangle tabBounds = GetItemRectangle(index);
+            if(tabBounds.IsEmpty) {
+                return tabBounds;
+            }
             if(index == iSelectedIndex) {
                 tabBounds.Inflate(4, 0);
-            }
-            if(fNeedToDrawUpDown) {
-                tabBounds.X += iScrollWidth;
             }
             return tabBounds;
         }
 
         /**
-         * »ñÈ¡Êó±ê²Ù×÷µÄ±êÇ©
-         * bug µ±Ö»ÓÐÒ»¸ö±êÇ©µÄÊ±ºò£¬µã»÷±êÇ©¿Õ°×´¦Ê¶±ðÎª±êÇ©
+         * È¡Ä±Ç©
+         * bug Ö»Ò»Ç©Ê±ò£¬µÇ©Õ°×´Ê¶ÎªÇ©
          */
         public QTabItem GetTabMouseOn() {
             if (this == null || this.IsDisposed)
@@ -1160,7 +1188,7 @@ namespace QTTabBarLib {
                 return null;
             }
 
-            // Èç¹û±êÇ©Ö»ÓÐÒ»¸öµÄ»°
+            // Ç©Ö»Ò»Ä»
             if (tabPages.Count == 1) {
                  if (tabPages[0].TabBounds.Contains(pt))
                  {
@@ -1173,7 +1201,11 @@ namespace QTTabBarLib {
             QTabItem base2 = null;
             QTabItem base3 = null;
             for(int i = 0; i < tabPages.Count; i++) {
-                if(GetItemRectWithInflation(i).Contains(pt)) {
+                Rectangle rect = GetItemRectWithInflation(i);
+                if(rect.IsEmpty) {
+                    continue;
+                }
+                if(rect.Contains(pt)) {
                     if(base2 == null) {
                         base2 = tabPages[i];
                         if(iMultipleType == 0) {
@@ -1199,7 +1231,11 @@ namespace QTTabBarLib {
             int num = -1;
             int num2 = -1;
             for(int i = 0; i < tabPages.Count; i++) {
-                if(GetItemRectWithInflation(i).Contains(pt)) {
+                Rectangle rect = GetItemRectWithInflation(i);
+                if(rect.IsEmpty) {
+                    continue;
+                }
+                if(rect.Contains(pt)) {
                     if(base2 == null) {
                         base2 = tabPages[i];
                         num = i;
@@ -1326,6 +1362,9 @@ namespace QTTabBarLib {
         }
 
         protected override void OnMouseDown(MouseEventArgs e) {
+            if(e.Button == MouseButtons.Left && TryHandleGroupIndicatorClick(e.Location)) {
+                return;
+            }
             int num;
             QTabItem tabMouseOn = GetTabMouseOn(out num);
             if(tabMouseOn != null) {
@@ -1467,12 +1506,23 @@ namespace QTTabBarLib {
                         InitializeRenderer();
                     }
                     for(int i = 0; i < tabPages.Count; i++) {
-                        if(i != iSelectedIndex) {
-                            DrawTab(e.Graphics, GetItemRectangle(i), i, tabMouseOn, fVisualStyle);
+                        if(i == iSelectedIndex) {
+                            continue;
                         }
+                        if(tabPages[i].CollapsedByGroup) {
+                            continue;
+                        }
+                        Rectangle rect = GetItemRectangle(i);
+                        if(rect.IsEmpty) {
+                            continue;
+                        }
+                        DrawTab(e.Graphics, rect, i, tabMouseOn, fVisualStyle);
                     }
-                    if((tabPages.Count > 0) && (iSelectedIndex > -1)) {
-                        DrawTab(e.Graphics, GetItemRectangle(iSelectedIndex), iSelectedIndex, tabMouseOn, fVisualStyle);
+                    if((tabPages.Count > 0) && (iSelectedIndex > -1) && !tabPages[iSelectedIndex].CollapsedByGroup) {
+                        Rectangle selectedRect = GetItemRectangle(iSelectedIndex);
+                        if(!selectedRect.IsEmpty) {
+                            DrawTab(e.Graphics, selectedRect, iSelectedIndex, tabMouseOn, fVisualStyle);
+                        }
                     }
                     if((fNeedToDrawUpDown && (iSelectedIndex < tabPages.Count)) && ((iSelectedIndex > -1) && (GetItemRectangle(iSelectedIndex).X != 0))) {
                         e.Graphics.FillRectangle(SystemBrushes.Control, new Rectangle(0, 0, 2, e.ClipRectangle.Height));
@@ -1480,9 +1530,13 @@ namespace QTTabBarLib {
 
                     if (fNeedPlusButton)
                     {
-                        DrawPlusButton(e.Graphics, GetItemRectangle(tabPages.Count - 1));
+                        Rectangle plusRect = GetItemRectangle(tabPages.Count - 1);
+                        if(!plusRect.IsEmpty) {
+                            DrawPlusButton(e.Graphics, plusRect);
+                        }
                     }
 
+                    DrawGroupIndicators(e.Graphics);
                     ShowUpDown(fNeedToDrawUpDown);
                 }
                 catch(Exception exception) {
@@ -1493,7 +1547,7 @@ namespace QTTabBarLib {
 
         private RectangleF newRect;
         /**
-         * »æÖÆÀ¶É«°´Å¥
+         * É«Å¥
          */
         private void DrawPlusButton(Graphics g,Rectangle drawRect)
         {
@@ -1540,6 +1594,9 @@ namespace QTTabBarLib {
                     for(int j = 0; j < tabPages.Count; j++) {
                         QTabItem base3 = tabPages[j];
                         if(base3.Row == i) {
+                            if(base3.CollapsedByGroup || base3.TabBounds.IsEmpty) {
+                                continue;
+                            }
                             if(j != iSelectedIndex) {
                                 DrawTab(e.Graphics, base3.TabBounds, j, tabMouseOn, fVisualStyle);
                             }
@@ -1548,7 +1605,7 @@ namespace QTTabBarLib {
                             }
                         }
                     }
-                    if(flag2) {
+                    if(flag2 && !tabPages[iSelectedIndex].CollapsedByGroup && !tabPages[iSelectedIndex].TabBounds.IsEmpty) {
                         DrawTab(e.Graphics, tabPages[iSelectedIndex].TabBounds, iSelectedIndex, tabMouseOn, fVisualStyle);
                         flag2 = false;
                     }
@@ -1558,10 +1615,13 @@ namespace QTTabBarLib {
                         if (tabPages.Count > 0)
                         {
                             Rectangle plusButtonRect = tabPages[tabPages.Count - 1].TabBounds;
-                            DrawPlusButton(e.Graphics,plusButtonRect);
+                            if(!plusButtonRect.IsEmpty) {
+                                DrawPlusButton(e.Graphics,plusButtonRect);
+                            }
                         }
                     }
                 }
+                DrawGroupIndicators(e.Graphics);
                 ShowUpDown(false);
             }
             catch(Exception exception) {
@@ -1599,6 +1659,9 @@ namespace QTTabBarLib {
                     TabCountChanged(this, new QTabCancelEventArgs(tabPage, index, false, TabControlAction.Deselected));
                 }
             }
+            RemoveTabFromGroups(tabPage);
+            CleanupEmptyGroups();
+            EnsureSelectionForCollapsedGroups();
         }
 
         private void OnUpDownClicked(bool dir, bool lockPaint) {
@@ -1689,7 +1752,7 @@ namespace QTTabBarLib {
             else {
                 SetTabImages(null);
             }
-            // ÅÐ¶Ï±êÇ©ÎÄ±¾ÊÇ·ñ¾ÓÖÐ »¹ÊÇ ¾Ó×ó
+            // Ð¶Ï±Ç©Ä±Ç·  
             tabTextAlignment = Config.Skin.TabTextCentered ? StringAlignment.Center : StringAlignment.Near;
             fDrawShadow = Config.Skin.TabTitleShadows;
             fDrawCloseButton = Config.Tabs.ShowCloseButtons && !Config.Tabs.CloseBtnsWithAlt;
@@ -2085,6 +2148,283 @@ namespace QTTabBarLib {
             }
         }
 
+        private bool TryGetGroupState(QTabItem tab, out TabGroupState state, out bool isLeader) {
+            state = null;
+            isLeader = false;
+            if(tab == null) {
+                return false;
+            }
+            string groupKey = tab.GroupKey;
+            if(string.IsNullOrEmpty(groupKey)) {
+                return false;
+            }
+            TabGroupState resolved;
+            if(!groupStates.TryGetValue(groupKey, out resolved) || resolved == null || resolved.Tabs == null || resolved.Tabs.Count == 0) {
+                return false;
+            }
+            if(!resolved.Tabs.Contains(tab)) {
+                return false;
+            }
+            state = resolved;
+            isLeader = ReferenceEquals(resolved.Tabs[0], tab);
+            return true;
+        }
+
+        private void ReserveGroupIndicator(TabGroupState state, ref int x, int y, int height) {
+            if(state == null) {
+                return;
+            }
+            int width = GROUP_INDICATOR_WIDTH + GROUP_INDICATOR_SPACING;
+            state.AnchorBounds = new Rectangle(x, y, width, height);
+            x += width;
+        }
+
+        private int GetNextVisibleIndex(int start) {
+            for(int i = start; i < tabPages.Count; i++) {
+                if(!tabPages[i].CollapsedByGroup) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private int GetPrevVisibleIndex(int start) {
+            for(int i = start; i >= 0; i--) {
+                if(!tabPages[i].CollapsedByGroup) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        internal void AssignGroupTabs(string groupName, IList<QTabItem> tabs) {
+            if(string.IsNullOrEmpty(groupName)) {
+                return;
+            }
+            if(tabs == null) {
+                tabs = Array.Empty<QTabItem>();
+            }
+            IList<QTabItem> tabList = tabs as IList<QTabItem> ?? new List<QTabItem>(tabs);
+            TabGroupState state;
+            if(!groupStates.TryGetValue(groupName, out state)) {
+                state = new TabGroupState { Name = groupName };
+                groupStates[groupName] = state;
+            }
+            foreach(var other in groupStates.Values) {
+                if(other == state) {
+                    continue;
+                }
+                for(int i = other.Tabs.Count - 1; i >= 0; i--) {
+                    QTabItem tab = other.Tabs[i];
+                    if(tab == null || !tabPages.Contains(tab) || tabList.Contains(tab)) {
+                        other.Tabs.RemoveAt(i);
+                        if(tab != null) {
+                            tab.GroupKey = null;
+                            tab.CollapsedByGroup = false;
+                        }
+                    }
+                }
+            }
+            state.Tabs.Clear();
+            state.AnchorBounds = Rectangle.Empty;
+            state.IndicatorBounds = Rectangle.Empty;
+            foreach(QTabItem tab in tabList) {
+                if(tab == null || !tabPages.Contains(tab)) {
+                    continue;
+                }
+                RemoveTabFromGroups(tab);
+                state.Tabs.Add(tab);
+                tab.GroupKey = groupName;
+            }
+            CleanupEmptyGroups();
+            SyncGroupOrder();
+            EnsureSelectionForCollapsedGroups();
+            Invalidate();
+        }
+
+        private void RemoveTabFromGroups(QTabItem tab) {
+            if(tab == null) {
+                return;
+            }
+            foreach(var state in groupStates.Values) {
+                state.Tabs.Remove(tab);
+            }
+            tab.GroupKey = null;
+            tab.CollapsedByGroup = false;
+        }
+
+        private void CleanupEmptyGroups() {
+            List<string> empty = new List<string>();
+            foreach(KeyValuePair<string, TabGroupState> pair in groupStates) {
+                TabGroupState state = pair.Value;
+                if(state == null) {
+                    continue;
+                }
+                state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+                if(state.Tabs.Count == 0) {
+                    empty.Add(pair.Key);
+                }
+            }
+            foreach(string key in empty) {
+                groupStates.Remove(key);
+            }
+        }
+
+        private void SyncGroupOrder() {
+            if(groupStates.Count == 0) {
+                return;
+            }
+            foreach(TabGroupState state in groupStates.Values) {
+                if(state == null) {
+                    continue;
+                }
+                state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+                state.Tabs.Sort((a, b) => tabPages.IndexOf(a).CompareTo(tabPages.IndexOf(b)));
+                ApplyGroupCollapseState(state);
+            }
+        }
+
+        internal void OnTabsReordered() {
+            SyncGroupOrder();
+            EnsureSelectionForCollapsedGroups();
+            Invalidate();
+        }
+
+        private void ApplyGroupCollapseState(TabGroupState state) {
+            if(state == null) {
+                return;
+            }
+            foreach(QTabItem tab in state.Tabs) {
+                if(tab != null) {
+                    tab.CollapsedByGroup = state.IsCollapsed;
+                }
+            }
+        }
+
+        private void EnsureSelectionForCollapsedGroups() {
+            if(iSelectedIndex < 0 || iSelectedIndex >= tabPages.Count) {
+                return;
+            }
+            if(!tabPages[iSelectedIndex].CollapsedByGroup) {
+                return;
+            }
+            int newIndex = GetNextVisibleIndex(iSelectedIndex + 1);
+            if(newIndex == -1) {
+                newIndex = GetPrevVisibleIndex(iSelectedIndex - 1);
+            }
+            if(newIndex != -1) {
+                SelectedIndex = newIndex;
+            }
+        }
+
+        private void ToggleGroup(string groupName) {
+            TabGroupState state;
+            if(!groupStates.TryGetValue(groupName, out state)) {
+                return;
+            }
+            state.IsCollapsed = !state.IsCollapsed;
+            ApplyGroupCollapseState(state);
+            EnsureSelectionForCollapsedGroups();
+            Invalidate();
+        }
+
+        private void UpdateGroupIndicators() {
+            foreach(var state in groupStates.Values) {
+                Rectangle anchor = state.AnchorBounds;
+                if(anchor.Width <= 0 || anchor.Height <= 0) {
+                    state.IndicatorBounds = Rectangle.Empty;
+                    continue;
+                }
+                int indicatorHeight = Math.Min(anchor.Height - 4, GROUP_INDICATOR_HEIGHT);
+                if(indicatorHeight < 6) {
+                    indicatorHeight = Math.Min(anchor.Height - 2, GROUP_INDICATOR_HEIGHT);
+                }
+                int x = anchor.Left + Math.Max((anchor.Width - GROUP_INDICATOR_WIDTH) / 2, 0);
+                int y = anchor.Top + Math.Max((anchor.Height - indicatorHeight) / 2, 0);
+                state.IndicatorBounds = new Rectangle(x, y, GROUP_INDICATOR_WIDTH, indicatorHeight);
+            }
+        }
+
+        private void DrawGroupIndicators(Graphics g) {
+            UpdateGroupIndicators();
+            foreach(var state in groupStates.Values) {
+                Rectangle rect = state.IndicatorBounds;
+                if(rect.Width <= 0 || rect.Height <= 0) {
+                    continue;
+                }
+                if((iMultipleType == 0) && fNeedToDrawUpDown) {
+                    rect.Offset(iScrollWidth, 0);
+                }
+                if(rect.Right < 0 || rect.Left > Width) {
+                    continue;
+                }
+                bool containsSelected = selectedTabPage != null && state.Tabs.Contains(selectedTabPage);
+                Color baseColor = containsSelected ? Config.Skin.TabTextActiveColor : Config.Skin.TabTextHotColor;
+                Color fill = state.IsCollapsed ? ControlPaint.Dark(baseColor) : baseColor;
+                using(SolidBrush brush = new SolidBrush(fill))
+                using(Pen pen = new Pen(ControlPaint.Dark(fill))) {
+                    g.FillRectangle(brush, rect);
+                    g.DrawRectangle(pen, rect);
+                }
+                Point[] triangle;
+                if(state.IsCollapsed) {
+                    triangle = new[] {
+                        new Point(rect.Left + 3, rect.Top + 2),
+                        new Point(rect.Right - 3, rect.Top + rect.Height / 2),
+                        new Point(rect.Left + 3, rect.Bottom - 2)
+                    };
+                }
+                else {
+                    triangle = new[] {
+                        new Point(rect.Left + 3, rect.Top + 3),
+                        new Point(rect.Right - 3, rect.Top + 3),
+                        new Point(rect.Left + rect.Width / 2, rect.Bottom - 3)
+                    };
+                }
+                using(SolidBrush arrowBrush = new SolidBrush(Color.White)) {
+                    g.FillPolygon(arrowBrush, triangle);
+                }
+            }
+        }
+
+        private bool TryHandleGroupIndicatorClick(Point location) {
+            UpdateGroupIndicators();
+            foreach(var state in groupStates.Values) {
+                Rectangle rect = state.IndicatorBounds;
+                if(rect.Width <= 0 || rect.Height <= 0) {
+                    continue;
+                }
+                if((iMultipleType == 0) && fNeedToDrawUpDown) {
+                    rect.Offset(iScrollWidth, 0);
+                }
+                if(rect.Contains(location)) {
+                    ToggleGroup(state.Name);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        
+
+        
+
+        
+
+        
+
+        
+
+        
+
+        private sealed class TabGroupState {
+            public string Name;
+            public List<QTabItem> Tabs = new List<QTabItem>();
+            public bool IsCollapsed;
+            public Rectangle AnchorBounds;
+            public Rectangle IndicatorBounds;
+        }
+
         public sealed class QTabCollection : List<QTabItem> {
             private QTabControl Owner;
 
@@ -2145,6 +2485,7 @@ namespace QTTabBarLib {
                         }
                     }
                 }
+                Owner.OnTabsReordered();
                 Owner.Refresh();
             }
         }

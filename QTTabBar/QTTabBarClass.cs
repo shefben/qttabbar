@@ -1628,6 +1628,19 @@ namespace QTTabBarLib {
             return tab;
         }
 
+        internal void RefreshTagVisuals() {
+            if(tabControl1 == null) {
+                return;
+            }
+            try {
+                foreach(QTabItem tab in tabControl1.TabPages) {
+                    tab.UpdateTagColor(false);
+                }
+                tabControl1.Invalidate();
+            }
+            catch { }
+        }
+
         // 创建 tab 图片
         internal static Bitmap[] CreateTabImage() {
             if(File.Exists(Config.Skin.TabImageFile)) {
@@ -4875,6 +4888,10 @@ namespace QTTabBarLib {
                     tsmiProp = new ToolStripMenuItem(QTUtility.ResMain[10]);
                     tsmiHistory = new ToolStripMenuItem(QTUtility.ResMain[11]);
                     tsmiTabOrder = new ToolStripMenuItem(QTUtility.ResMain[0x1c]);
+                    tsmiExplorerContext = new ToolStripMenuItem("Explorer Context");
+                    var explorerContextDropDown = new ContextMenuStripEx(components, false);
+                    explorerContextDropDown.Opening += tsmiExplorerContext_DropDownOpening;
+                    tsmiExplorerContext.DropDown = explorerContextDropDown;
 
                     /** add by qwop 2012-07-13.*/
                     int len = QTUtility.ResMain.Length;
@@ -4893,7 +4910,7 @@ namespace QTTabBarLib {
                         tsmiClose, tsmiCloseRight, tsmiCloseLeft, tsmiCloseAllButThis, 
                         tssep_Tab1, tsmiAddToGroup, tsmiCreateGroup, tssep_Tab2, tsmiLockThis, 
                         tsmiCloneThis, tsmiCreateWindow, tsmiCopy, tsmiTabOrder, tssep_Tab3, tsmiProp,
-                        tsmiHistory,
+                        tsmiExplorerContext, tsmiHistory,
                         tsmiOpenCmd,
                         // enableApiHook
                     });
@@ -4939,6 +4956,7 @@ namespace QTTabBarLib {
                     tsmiProp.Text = QTUtility.ResMain[10];
                     tsmiHistory.Text = QTUtility.ResMain[11];
                     tsmiTabOrder.Text = QTUtility.ResMain[0x1c];
+                    tsmiExplorerContext.Text = "Explorer Context";
                     menuTextBoxTabAlias.Text = menuTextBoxTabAlias.ToolTipText = QTUtility.ResMain[0x1b];
                 }
             }
@@ -5435,6 +5453,34 @@ namespace QTTabBarLib {
         /**
          * 新增到标签组事件
          */
+        private void tsmiExplorerContext_DropDownOpening(object sender, CancelEventArgs e) {
+            e.Cancel = true;
+            if(ContextMenuedTab == null) {
+                return;
+            }
+            try {
+                byte[] idl = ContextMenuedTab.CurrentIDL;
+                using(IDLWrapper wrapper = idl != null ? new IDLWrapper(idl) : new IDLWrapper(ContextMenuedTab.CurrentPath)) {
+                    if(!wrapper.Available) {
+                        return;
+                    }
+                    ToolStripDropDown dropDown = sender as ToolStripDropDown;
+                    if(dropDown == null) {
+                        return;
+                    }
+                    ToolStripDropDownItem ownerItem = dropDown.OwnerItem as ToolStripDropDownItem;
+                    ToolStrip owner = ownerItem != null ? ownerItem.Owner : null;
+                    if(owner == null) {
+                        return;
+                    }
+                    Rectangle itemBounds = ownerItem.Bounds;
+                    Point location = owner.PointToScreen(new Point(itemBounds.Right, itemBounds.Top));
+                    shellContextMenu.Open(wrapper, location, owner.Handle, false);
+                }
+            }
+            catch { }
+        }
+
         private void menuitemAddToGroup_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e) {
             // TODO we should be using tags I think
             string groupName = e.ClickedItem.Text;
@@ -6003,6 +6049,7 @@ namespace QTTabBarLib {
             string str4 = null;
             int num = 0;
             QTabItem tabPage = null;
+            List<QTabItem> assignedTabs = new List<QTabItem>();
             Keys modifierKeys = ModifierKeys;
             bool flag3 = Config.Tabs.NeverOpenSame == (modifierKeys != Keys.Shift);
             bool flag4 = Config.Tabs.ActivateNewTab == (modifierKeys != Keys.Control);
@@ -6037,20 +6084,30 @@ namespace QTTabBarLib {
                             num++;
                             using (var wrapper2 = new IDLWrapper(gpath)) {
                                 if (wrapper2.Available) {
+                                    QTabItem created;
                                     if (tabPage == null) {
-                                        tabPage = CreateNewTab(wrapper2);
+                                        tabPage = created = CreateNewTab(wrapper2);
                                     } else {
-                                        CreateNewTab(wrapper2);
+                                        created = CreateNewTab(wrapper2);
+                                    }
+                                    if(created != null && !assignedTabs.Contains(created)) {
+                                        assignedTabs.Add(created);
                                     }
                                 }
                             }
                             flag = true;
-                        } else if (tabPage == null) {
-                            tabPage = (
+                        } else {
+                            QTabItem existing = (
                                 from item in tabControl1.TabPages
                                 where item.CurrentPath.PathEquals(gpath)
                                 select item
                             ).FirstOrDefault();
+                            if(existing != null && !assignedTabs.Contains(existing)) {
+                                assignedTabs.Add(existing);
+                            }
+                            if (tabPage == null) {
+                                tabPage = existing;
+                            }
                         }
                     }
 
@@ -6072,6 +6129,10 @@ namespace QTTabBarLib {
                 TryCallButtonBar(bbar => bbar.RefreshButtons());
                 if (flag5) QTabItem.CheckSubTexts(tabControl1);
                 NowTabsAddingRemoving = false;
+            }
+            if(assignedTabs.Count > 0) {
+                tabControl1.AssignGroupTabs(groupName, assignedTabs);
+            }
             }
         }
 

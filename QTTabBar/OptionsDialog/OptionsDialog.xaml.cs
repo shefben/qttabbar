@@ -146,7 +146,15 @@ namespace QTTabBarLib {
                 Initialized += (sender, args) => Topmost = true;
                 ContentRendered += (sender, args) => Topmost = false;
                 // SetProcessDPIAware是Vista以上才有的函数，这样直接调用会使得程序不兼容XP
-                PInvoke.SetProcessDPIAware();
+                try {
+                    PInvoke.SetProcessDPIAware();
+                }
+                catch(EntryPointNotFoundException) { }
+                catch(DllNotFoundException) { }
+                catch(BadImageFormatException) { }
+                catch(Exception ex) {
+                    QTUtility2.MakeErrorLog(ex, "SetProcessDPIAware");
+                }
                 // QTUtility2.log("QTUtility OptionsDialog SetProcessDPIAware 不兼容XP");
                 InitializeComponent();
                 
