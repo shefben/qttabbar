@@ -30,6 +30,7 @@ namespace QTTabBarLib {
         private static SolidBrush sbTagBack;
         private struct TagVisualInfo {
             public bool HasTag;
+            public bool HasPath;
             public Color? TextColor;
         }
         private Dictionary<int, TagVisualInfo> tagInfoCache;
@@ -481,49 +482,52 @@ namespace QTTabBarLib {
                                 (IntPtr)(LVIS.FOCUSED | LVIS.SELECTED | LVIS.DROPHILITED));
 
                         if(!QTUtility.IsXP) {
-                            int num4 = lstColumnFMT[structure.iSubItem];
+                            bool altRowColors = Config.Tweaks.AlternateRowColors && (ShellBrowser.ViewMode == FVM.DETAILS);
                             int itemIndex = (int)structure.nmcd.dwItemSpec;
                             TagVisualInfo tagInfo = GetTagInfo(itemIndex);
-                            bool isTagged = tagInfo.HasTag;
-                            Color? tagColor = tagInfo.TextColor;
                             bool isSelectedState = (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) != 0;
-                            structure.clrTextBk = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowBackgroundColor);
-                            structure.clrText = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowForegroundColor);
-                            if(!isSelectedState) {
-                                if(tagColor.HasValue) {
-                                    structure.clrText = QTUtility2.MakeCOLORREF(tagColor.Value);
+                            if(altRowColors) {
+                                int num4 = lstColumnFMT[structure.iSubItem];
+                                structure.clrTextBk = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowBackgroundColor);
+                                structure.clrText = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowForegroundColor);
+                                bool textChanged = ApplyTagTextColor(ref structure, tagInfo, isSelectedState);
+                                if(!isSelectedState && TagManager.HighlightTagged && tagInfo.HasTag) {
+                                    structure.clrTextBk = QTUtility2.MakeCOLORREF(GetTagBackgroundColor(tagInfo.TextColor));
                                 }
-                                else if(TagManager.DimUntagged && !isTagged) {
-                                    structure.clrText = QTUtility2.MakeCOLORREF(Color.Gray);
+                                if(textChanged || (TagManager.HighlightTagged && tagInfo.HasTag && !isSelectedState)) {
+                                    Marshal.StructureToPtr(structure, msg.LParam, false);
                                 }
-                                if(TagManager.HighlightTagged && isTagged) {
-                                    structure.clrTextBk = QTUtility2.MakeCOLORREF(GetTagBackgroundColor(tagColor));
-                                }
-                            }
-                            Marshal.StructureToPtr(structure, msg.LParam, false);
-                            bool drawingHotItem = (dwItemSpec == GetHotItem());
-                            bool fullRowSel = !Config.Tweaks.ToggleFullRowSelect;
+                                bool drawingHotItem = (dwItemSpec == GetHotItem());
+                                bool fullRowSel = !Config.Tweaks.ToggleFullRowSelect;
 
-                            msg.Result = (IntPtr)(CDRF.NEWFONT);
-                            if(structure.iSubItem == 0 && !drawingHotItem) {
-                                if(iListViewItemState == 0 && (num4 & 0x600) != 0) {
-                                    msg.Result = (IntPtr)(CDRF.NEWFONT | CDRF.NOTIFYPOSTPAINT);
-                                }
-                                else if(iListViewItemState == LVIS.FOCUSED && !fullRowSel) {
-                                    msg.Result = (IntPtr)(CDRF.NEWFONT | CDRF.NOTIFYPOSTPAINT);
-                                }
-                            }
-
-                            if(structure.iSubItem > 0 && (!fullRowSel || !drawingHotItem)) {
-                                if(!fullRowSel || (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) == 0) {
-                                    using(Graphics graphics = Graphics.FromHdc(structure.nmcd.hdc)) {
-                                        if(sbAlternate == null ||
-                                           sbAlternate.Color != Config.Tweaks.AltRowBackgroundColor) {
-                                            sbAlternate = new SolidBrush(Config.Tweaks.AltRowBackgroundColor);
-                                        }
-                                        graphics.FillRectangle(sbAlternate, structure.nmcd.rc.ToRectangle());
+                                msg.Result = (IntPtr)(CDRF.NEWFONT);
+                                if(structure.iSubItem == 0 && !drawingHotItem) {
+                                    if(iListViewItemState == 0 && (num4 & 0x600) != 0) {
+                                        msg.Result = (IntPtr)(CDRF.NEWFONT | CDRF.NOTIFYPOSTPAINT);
+                                    }
+                                    else if(iListViewItemState == LVIS.FOCUSED && !fullRowSel) {
+                                        msg.Result = (IntPtr)(CDRF.NEWFONT | CDRF.NOTIFYPOSTPAINT);
                                     }
                                 }
+
+                                if(structure.iSubItem > 0 && (!fullRowSel || !drawingHotItem)) {
+                                    if(!fullRowSel || (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) == 0) {
+                                        using(Graphics graphics = Graphics.FromHdc(structure.nmcd.hdc)) {
+                                            if(sbAlternate == null ||
+                                               sbAlternate.Color != Config.Tweaks.AltRowBackgroundColor) {
+                                                sbAlternate = new SolidBrush(Config.Tweaks.AltRowBackgroundColor);
+                                            }
+                                            graphics.FillRectangle(sbAlternate, structure.nmcd.rc.ToRectangle());
+                                        }
+                                    }
+                                }
+                            }
+                            else {
+                                bool textChanged = ApplyTagTextColor(ref structure, tagInfo, isSelectedState);
+                                if(textChanged) {
+                                    Marshal.StructureToPtr(structure, msg.LParam, false);
+                                }
+                                msg.Result = (IntPtr)(textChanged ? CDRF.NEWFONT : CDRF.DODEFAULT);
                             }
                         }
                         else {
@@ -794,6 +798,21 @@ namespace QTTabBarLib {
             }
         }
 
+        private static bool ApplyTagTextColor(ref NMLVCUSTOMDRAW structure, TagVisualInfo tagInfo, bool isSelectedState) {
+            if(isSelectedState) {
+                return false;
+            }
+            if(tagInfo.TextColor.HasValue) {
+                structure.clrText = QTUtility2.MakeCOLORREF(tagInfo.TextColor.Value);
+                return true;
+            }
+            if(TagManager.DimUntagged && tagInfo.HasPath && !tagInfo.HasTag) {
+                structure.clrText = QTUtility2.MakeCOLORREF(Color.Gray);
+                return true;
+            }
+            return false;
+        }
+
         private TagVisualInfo GetTagInfo(int index) {
             if(index < 0) {
                 return default(TagVisualInfo);
@@ -810,6 +829,7 @@ namespace QTTabBarLib {
                 using(IDLWrapper wrapper = ShellBrowser.GetItem(index)) {
                     string path = wrapper != null ? wrapper.Path : null;
                     if(!string.IsNullOrEmpty(path)) {
+                        info.HasPath = true;
                         info.TextColor = TagManager.GetTagColorForPath(path);
                         info.HasTag = info.TextColor.HasValue || TagManager.HasTags(path);
                     }
