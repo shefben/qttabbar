@@ -200,18 +200,7 @@ namespace QTTabBarLib {
                 };
                 foreach(OptionsDialogTab tab in tabbedPanel.Items) {
                     tab.WorkingConfig = WorkingConfig;
-
-                    new Options11_ButtonBar     { Index = i++},
-
-                    new Options12_Plugins       { Index = i++},
-
-                    new Options13_Language      { Index = i++},
-
-                    new Options15_Sessions      { Index = i++},
-
-                    new Options14_About         { Index = i}
-
-                };
+                }
 
                // QTUtility2.log("tabbedPanel.ItemsSource end");    
 

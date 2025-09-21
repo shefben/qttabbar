@@ -1382,7 +1382,8 @@ namespace QTTabBarLib {
 
         private bool CanRenameTabFolder(QTabItem tab)
         {
-            if(!TryCreateWrapperForTab(tab, out IDLWrapper wrapper)) {
+            IDLWrapper wrapper;
+            if(!TryCreateWrapperForTab(tab, out wrapper)) {
                 return false;
             }
             using(wrapper) {
@@ -1399,7 +1400,8 @@ namespace QTTabBarLib {
 
         private void PromptRenameForTab(QTabItem tab)
         {
-            if(!TryCreateWrapperForTab(tab, out IDLWrapper wrapper)) {
+            IDLWrapper wrapper;
+            if(!TryCreateWrapperForTab(tab, out wrapper)) {
                 return;
             }
             using(wrapper) {
@@ -1704,8 +1706,12 @@ namespace QTTabBarLib {
                     tab.UpdateTagColor(false);
                 }
                 tabControl1.Invalidate();
-                listView?.RefreshTagColors();
-                treeViewWrapper?.RefreshTagColors();
+                if(listView != null) {
+                    listView.RefreshTagColors();
+                }
+                if(treeViewWrapper != null) {
+                    treeViewWrapper.RefreshTagColors();
+                }
             }
             catch { }
         }
@@ -2868,7 +2874,8 @@ namespace QTTabBarLib {
             if(tabMouseOn == null) {
                 return 1;
             }
-            if(!TryCreateWrapperForTab(tabMouseOn, out IDLWrapper wrapper)) {
+            IDLWrapper wrapper;
+            if(!TryCreateWrapperForTab(tabMouseOn, out wrapper)) {
                 return -1;
             }
             using(wrapper) {
@@ -2962,7 +2969,8 @@ namespace QTTabBarLib {
                 ShowToolTipForDD(mouseOnTab, -1, e.KeyState);
                 return;
             }
-            if(!TryCreateWrapperForTab(mouseOnTab, out IDLWrapper wrapper)) {
+            IDLWrapper wrapper;
+            if(!TryCreateWrapperForTab(mouseOnTab, out wrapper)) {
                 HideToolTipForDD();
                 return;
             }
