@@ -269,7 +269,7 @@ namespace QTTabBarLib {
             Color normalized = color;
             if (normalized.IsEmpty)
             {
-                return QTUtility.InNightMode ? ShellColors.NightModeTextColor : Color.Black;
+                return QTUtility.InNightMode ? ShellColors.Text : Color.Black;
             }
 
             if (normalized.A == 0 && (normalized.R != 0 || normalized.G != 0 || normalized.B != 0))
@@ -279,18 +279,89 @@ namespace QTTabBarLib {
 
             if (QTUtility.InNightMode)
             {
-                if (normalized.A < 255)
-                {
-                    normalized = Color.FromArgb(255, normalized);
-                }
-
-                if (normalized.GetBrightness() < 0.65f)
-                {
-                    return ShellColors.NightModeTextColor;
-                }
+                normalized = Color.FromArgb(255, normalized);
+                normalized = EnsureNightModeContrast(normalized, ShellColors.Default, ShellColors.Text);
             }
 
             return normalized;
+        }
+
+        private static Color EnsureNightModeContrast(Color color, Color background, Color fallback)
+        {
+            if (!QTUtility.InNightMode)
+            {
+                return color;
+            }
+
+            const double MinimumContrastRatio = 4.5d;
+
+            Color opaqueColor = Color.FromArgb(255, color);
+            Color opaqueBackground = Color.FromArgb(255, background);
+            double contrast = CalculateContrastRatio(opaqueColor, opaqueBackground);
+            if (contrast >= MinimumContrastRatio)
+            {
+                return opaqueColor;
+            }
+
+            Color target = fallback.IsEmpty ? Color.White : Color.FromArgb(255, fallback);
+
+            double low = 0d;
+            double high = 1d;
+            Color result = target;
+
+            for (int i = 0; i < 8; i++)
+            {
+                double mid = (low + high) / 2d;
+                Color blended = BlendColors(opaqueColor, target, mid);
+                contrast = CalculateContrastRatio(blended, opaqueBackground);
+
+                if (contrast >= MinimumContrastRatio)
+                {
+                    result = blended;
+                    high = mid;
+                }
+                else
+                {
+                    low = mid;
+                }
+            }
+
+            return result;
+        }
+
+        private static Color BlendColors(Color from, Color to, double amount)
+        {
+            amount = Math.Min(1d, Math.Max(0d, amount));
+
+            int r = (int)Math.Round(from.R + ((to.R - from.R) * amount));
+            int g = (int)Math.Round(from.G + ((to.G - from.G) * amount));
+            int b = (int)Math.Round(from.B + ((to.B - from.B) * amount));
+
+            return Color.FromArgb(255, r, g, b);
+        }
+
+        private static double CalculateContrastRatio(Color first, Color second)
+        {
+            double luminance1 = GetRelativeLuminance(first);
+            double luminance2 = GetRelativeLuminance(second);
+
+            double lighter = Math.Max(luminance1, luminance2);
+            double darker = Math.Min(luminance1, luminance2);
+
+            return (lighter + 0.05d) / (darker + 0.05d);
+        }
+
+        private static double GetRelativeLuminance(Color color)
+        {
+            double r = color.R / 255d;
+            double g = color.G / 255d;
+            double b = color.B / 255d;
+
+            r = r <= 0.03928d ? r / 12.92d : Math.Pow((r + 0.055d) / 1.055d, 2.4d);
+            g = g <= 0.03928d ? g / 12.92d : Math.Pow((g + 0.055d) / 1.055d, 2.4d);
+            b = b <= 0.03928d ? b / 12.92d : Math.Pow((b + 0.055d) / 1.055d, 2.4d);
+
+            return (0.2126d * r) + (0.7152d * g) + (0.0722d * b);
         }
 
         public static Color selectedColor(bool fSelected)
