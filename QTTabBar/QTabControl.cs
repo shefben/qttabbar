@@ -51,6 +51,7 @@ namespace QTTabBarLib {
         private bool fNeedPlusButton;
         private bool fNowMouseIsOnCloseBtn;
         private bool fNowMouseIsOnIcon;
+        private bool fMouseDownOnCloseBtn;
         private bool fNowShowCloseBtnAlt;
         private bool fNowTabContextMenuStripShowing;
         private Font fnt_Underline;
@@ -1485,7 +1486,8 @@ namespace QTTabBarLib {
         }
 
         protected override void OnMouseDown(MouseEventArgs e) {
-            if(e.Button == MouseButtons.Left && TryHandleGroupIndicatorClick(e.Location)) {
+            fMouseDownOnCloseBtn = false; // Reset close button tracking
+            if(e.Button == MouseButtons.Left && Config.Tabs.ShowTabIslands && TryHandleGroupIndicatorClick(e.Location)) {
                 return;
             }
             int num;
@@ -1493,6 +1495,7 @@ namespace QTTabBarLib {
             if(tabMouseOn != null) {
                 bool cancel = e.Button == MouseButtons.Right;
                 if((!cancel && fDrawCloseButton) && HitTestOnButtons(tabMouseOn.TabBounds, e.Location, true, num == iSelectedIndex)) {
+                    fMouseDownOnCloseBtn = true;
                     PInvoke.InvalidateRect(Handle, IntPtr.Zero, true);
                     return;
                 }
@@ -1518,6 +1521,7 @@ namespace QTTabBarLib {
             }
             draggingTab = tabMouseOn;
             if(e.Button == MouseButtons.Left) {
+                // fMouseDownOnCloseBtn is already set correctly above if needed
                 groupingDragOrigin = e.Location;
                 groupingDragActive = false;
                 UpdateGroupDropTarget(null);
@@ -1623,8 +1627,9 @@ namespace QTTabBarLib {
                 if(e.Button == MouseButtons.Left && wasGroupingDrag && droppedTab != null) {
                     HandleGroupDrop(droppedTab, dropTarget);
                 }
-                if(((fDrawCloseButton && (e.Button != MouseButtons.Right)) && ((CloseButtonClicked != null) && (tabMouseOn != null))) && (!tabMouseOn.TabLocked && HitTestOnButtons(tabMouseOn.TabBounds, e.Location, true, num == iSelectedIndex))) {
+                if(((fDrawCloseButton && (e.Button != MouseButtons.Right)) && ((CloseButtonClicked != null) && (tabMouseOn != null))) && (!tabMouseOn.TabLocked && fMouseDownOnCloseBtn && HitTestOnButtons(tabMouseOn.TabBounds, e.Location, true, num == iSelectedIndex))) {
                     if(e.Button == MouseButtons.Left) {
+                        fMouseDownOnCloseBtn = false; // Reset tracking after close
                         iTabMouseOnButtonsIndex = -1;
                         QTabCancelEventArgs args = new QTabCancelEventArgs(tabMouseOn, num, false, TabControlAction.Deselected);
                         CloseButtonClicked(this, args);
@@ -1658,6 +1663,9 @@ namespace QTTabBarLib {
             else {
                 fNeedToDrawUpDown = CalculateItemRectangle();
                 try {
+                    if(Config.Tabs.ShowTabIslands) {
+                        DrawGroupIndicators(e.Graphics);
+                    }
                     QTabItem tabMouseOn = GetTabMouseOn();
                     bool fVisualStyle = !fForceClassic && VisualStyleRenderer.IsSupported;
                     if(fVisualStyle && (vsr_LPressed == null)) {

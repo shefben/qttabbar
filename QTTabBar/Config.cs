@@ -142,6 +142,7 @@ namespace QTTabBarLib {
         LockAll,
         BrowseFolder,
         CreateNewGroup,
+        CreateNewIsland,
         /***** add by indiff end *****/
        // AddToGroup,  // 新增到标签组 ， 添加一个新操作有问题
         ShowOptions,
@@ -571,6 +572,7 @@ namespace QTTabBarLib {
             public bool MultipleTabRows          { get; set; }
             public bool ActiveTabOnBottomRow     { get; set; }
             public bool NeedPlusButton           { get; set; }
+            public bool ShowTabIslands           { get; set; }
 
             public _Tabs() {
                /* NewTabPosition = TabPos.Rightmost;
@@ -607,6 +609,7 @@ namespace QTTabBarLib {
                 MultipleTabRows = true; // 允许多行标签
                 ActiveTabOnBottomRow = false; // 始终将活动标签置于底部行
                 NeedPlusButton = true; // 是否显示蓝色新增标签按钮
+                ShowTabIslands = true; // 是否显示标签岛屿(组)指示器
             }
         }
 
@@ -1132,6 +1135,8 @@ namespace QTTabBarLib {
                    //  {BindAction.NewFolder,          Key.N     | Key.Shift }, // 系统默认自带
                    // 创建标签组
                    {BindAction.CreateNewGroup,     Key.D    | Key.Control},
+                   // 创建新岛屿(独立组)
+                   {BindAction.CreateNewIsland,    Key.I    | Key.Control | Key.Shift},
                    // 添加到标签组
                  //  {BindAction.AddToGroup,         Key.D    | Key.Control  },
                    // {BindAction.AddToGroup,         Key.G    | Key.Control | Key.Alt },

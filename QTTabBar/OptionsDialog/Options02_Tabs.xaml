@@ -216,6 +216,10 @@
             IsChecked="{Binding Path=ActiveTabOnBottomRow}"
             IsEnabled="{Binding Path=IsChecked, ElementName=chkMultipleTabRows}"
             Style="{StaticResource IndentedCheckStyle}"/>
+        <CheckBox x:Name="chkShowTabIslands"
+            Content="Show Tab Islands (Groups)"
+            IsChecked="{Binding Path=ShowTabIslands}"
+            Style="{StaticResource CheckStyle}"/>
         <CheckBox x:Name="NeedPlusButton"
             Content="{qt:Resx Key=Options_Page01_Window, Index=16}"
             IsChecked="{Binding Path=NeedPlusButton}"

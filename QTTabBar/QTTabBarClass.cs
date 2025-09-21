@@ -138,6 +138,7 @@ namespace QTTabBarLib {
         private ToolStripMenuItem tsmiCloseWindow;
         private ToolStripMenuItem tsmiCopy;
         private ToolStripMenuItem tsmiCreateGroup;
+        private ToolStripMenuItem tsmiCreateIsland;
         private ToolStripMenuItem tsmiCreateWindow;
         private ToolStripMenuItem tsmiExecuted;
         private ToolStripMenuItem tsmiGroups;
@@ -1331,6 +1332,9 @@ namespace QTTabBarLib {
                 else if(e.ClickedItem == tsmiCreateGroup) {
                     CreateGroup(ContextMenuedTab);
                 }
+                else if(e.ClickedItem == tsmiCreateIsland) {
+                    CreateNewIsland(ContextMenuedTab);
+                }
                 else if(e.ClickedItem == tsmiLockThis) {
                     ContextMenuedTab.TabLocked = !ContextMenuedTab.TabLocked;
                 }
@@ -1631,6 +1635,29 @@ namespace QTTabBarLib {
             NowModalDialogShown = false;
         }
 
+        // 创建新岛屿(独立组)
+        private void CreateNewIsland(QTabItem tab) {
+            if(tab == null) return;
+
+            // 生成唯一的岛屿名称
+            string baseName = "Island";
+            string uniqueName = baseName;
+            int counter = 1;
+
+            while(GroupsManager.Groups.Any(g => g.Name == uniqueName)) {
+                uniqueName = $"{baseName} {counter}";
+                counter++;
+            }
+
+            // 创建只包含当前标签的新组(岛屿)
+            string[] paths = { tab.CurrentPath };
+            Group newGroup = new Group(uniqueName, paths);
+            GroupsManager.RegisterGroup(newGroup, true);
+
+            // 应用组到当前标签
+            tab.GroupKey = uniqueName;
+            tabControl1.Invalidate();
+        }
 
         // 添加到标签组功能
         private void Add2Group(QTabItem contextMenuedTab)
@@ -1918,7 +1945,11 @@ namespace QTTabBarLib {
                 case BindAction.CreateNewGroup: // 创建新分组
                     CreateGroup(tab);
                     break;
-                
+
+                case BindAction.CreateNewIsland: // 创建新岛屿(独立组)
+                    CreateNewIsland(tab);
+                    break;
+
                 // case BindAction.AddToGroup: // 新增到标签组
                 //     Add2Group(tab);
                 //     break;
@@ -4986,6 +5017,7 @@ namespace QTTabBarLib {
                     tsmiCloseAllButThis = new ToolStripMenuItem(QTUtility.ResMain[3]);
                     tsmiAddToGroup = new ToolStripMenuItem(QTUtility.ResMain[4]);
                     tsmiCreateGroup = new ToolStripMenuItem(QTUtility.ResMain[5] + "...");
+                    tsmiCreateIsland = new ToolStripMenuItem("Create New Island");
                     tsmiLockThis = new ToolStripMenuItem(QTUtility.ResMain[6]);
                     tsmiCloneThis = new ToolStripMenuItem(QTUtility.ResMain[7]);
                     tsmiCreateWindow = new ToolStripMenuItem(QTUtility.ResMain[8]);
