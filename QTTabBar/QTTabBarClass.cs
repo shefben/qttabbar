@@ -125,43 +125,7 @@ namespace QTTabBarLib {
         
         
         private TreeViewWrapper treeViewWrapper;
-        // 添加到分组
-        private ToolStripMenuItem tsmiAddToGroup;
-        private ToolStripMenuItem tsmiBrowseFolder;
-        private ToolStripMenuItem tsmiCloneThis;
         private ToolStripMenuItem tsmiRenameFolder;
-        private ToolStripMenuItem tsmiClose;
-        private ToolStripMenuItem tsmiCloseAllButCurrent;
-        private ToolStripMenuItem tsmiCloseAllButThis;
-        private ToolStripMenuItem tsmiCloseLeft;
-        private ToolStripMenuItem tsmiCloseRight;
-        private ToolStripMenuItem tsmiCloseWindow;
-        private ToolStripMenuItem tsmiCopy;
-        private ToolStripMenuItem tsmiCreateGroup;
-        private ToolStripMenuItem tsmiCreateIsland;
-        private ToolStripMenuItem tsmiCreateWindow;
-        private ToolStripMenuItem tsmiExecuted;
-        private ToolStripMenuItem tsmiGroups;
-        private ToolStripMenuItem tsmiHistory;
-        private ToolStripMenuItem tsmiLastActiv;
-        private ToolStripMenuItem tsmiLockThis;
-        private ToolStripMenuItem tsmiLockToolbar;
-        private ToolStripMenuItem tsmiMergeWindows;
-        private ToolStripMenuItem tsmiOption;
-        private ToolStripMenuItem tsmiProp;
-        private ToolStripMenuItem tsmiTabOrder;
-        private ToolStripMenuItem tsmiUndoClose;
-
-        /*add by qwop 2012.07.13#1#*/
-        private ToolStripMenuItem tsmiOpenCmd;
-        private ToolStripMenuItem enableApiHook;
-        /*add by qwop 2012.07.13#1#*/
-
-        private ToolStripSeparator tssep_Sys1;
-        private ToolStripSeparator tssep_Sys2;
-        private ToolStripSeparator tssep_Tab1;
-        private ToolStripSeparator tssep_Tab2;
-        private ToolStripSeparator tssep_Tab3;
         private readonly int WM_NEWTREECONTROL = PInvoke.RegisterWindowMessage("QTTabBar_NewTreeControl");
         private readonly int WM_BROWSEOBJECT = PInvoke.RegisterWindowMessage("QTTabBar_BrowseObject");
         private readonly int WM_HEADERINALLVIEWS = PInvoke.RegisterWindowMessage("QTTabBar_HeaderInAllViews");
@@ -1332,9 +1296,6 @@ namespace QTTabBarLib {
                 else if(e.ClickedItem == tsmiCreateGroup) {
                     CreateGroup(ContextMenuedTab);
                 }
-                else if(e.ClickedItem == tsmiCreateIsland) {
-                    CreateNewIsland(ContextMenuedTab);
-                }
                 else if(e.ClickedItem == tsmiLockThis) {
                     ContextMenuedTab.TabLocked = !ContextMenuedTab.TabLocked;
                 }
@@ -1635,29 +1596,6 @@ namespace QTTabBarLib {
             NowModalDialogShown = false;
         }
 
-        // 创建新岛屿(独立组)
-        private void CreateNewIsland(QTabItem tab) {
-            if(tab == null) return;
-
-            // 生成唯一的岛屿名称
-            string baseName = "Island";
-            string uniqueName = baseName;
-            int counter = 1;
-
-            while(GroupsManager.Groups.Any(g => g.Name == uniqueName)) {
-                uniqueName = $"{baseName} {counter}";
-                counter++;
-            }
-
-            // 创建只包含当前标签的新组(岛屿)
-            string[] paths = { tab.CurrentPath };
-            Group newGroup = new Group(uniqueName, paths);
-            GroupsManager.RegisterGroup(newGroup, true);
-
-            // 应用组到当前标签
-            tab.GroupKey = uniqueName;
-            tabControl1.Invalidate();
-        }
 
         // 添加到标签组功能
         private void Add2Group(QTabItem contextMenuedTab)
@@ -1945,11 +1883,7 @@ namespace QTTabBarLib {
                 case BindAction.CreateNewGroup: // 创建新分组
                     CreateGroup(tab);
                     break;
-
-                case BindAction.CreateNewIsland: // 创建新岛屿(独立组)
-                    CreateNewIsland(tab);
-                    break;
-
+                
                 // case BindAction.AddToGroup: // 新增到标签组
                 //     Add2Group(tab);
                 //     break;
@@ -5017,7 +4951,6 @@ namespace QTTabBarLib {
                     tsmiCloseAllButThis = new ToolStripMenuItem(QTUtility.ResMain[3]);
                     tsmiAddToGroup = new ToolStripMenuItem(QTUtility.ResMain[4]);
                     tsmiCreateGroup = new ToolStripMenuItem(QTUtility.ResMain[5] + "...");
-                    tsmiCreateIsland = new ToolStripMenuItem("Create New Island");
                     tsmiLockThis = new ToolStripMenuItem(QTUtility.ResMain[6]);
                     tsmiCloneThis = new ToolStripMenuItem(QTUtility.ResMain[7]);
                     tsmiCreateWindow = new ToolStripMenuItem(QTUtility.ResMain[8]);
