@@ -329,10 +329,6 @@ namespace QTTabBarLib {
         }
         #endregion
 
-    }
-
-    internal partial class OptionsDialog : Window {
-
         private void UpdateOptions() {
             foreach(OptionsDialogTab tab in tabbedPanel.Items) {
                 tab.CommitConfig();
