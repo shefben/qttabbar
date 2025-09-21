@@ -562,6 +562,7 @@
     <Compile Include="TagColorEditorForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="TagColorPalette.cs" />
     <Compile Include="RecentOpenedTabsManager.cs" />
     <Compile Include="SubDirTipForm.cs">
       <SubType>Form</SubType>

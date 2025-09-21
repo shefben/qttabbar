@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Media;
 using System.Windows.Forms;
 
 namespace QTTabBarLib {
@@ -11,6 +12,7 @@ namespace QTTabBarLib {
         private readonly Button btnClearColor;
         private readonly Button btnOk;
         private readonly Button btnCancel;
+        private readonly ToolTip paletteToolTip;
 
         private readonly Dictionary<string, Color?> initialColors;
         private readonly Dictionary<string, Color?> workingColors;
@@ -19,7 +21,7 @@ namespace QTTabBarLib {
 
         private TagColorEditorForm(IList<string> tags, IDictionary<string, Color?> existingColors) {
             Text = "Tag Colors";
-            ClientSize = new Size(400, 260);
+            ClientSize = new Size(440, 380);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -27,36 +29,68 @@ namespace QTTabBarLib {
 
             initialColors = new Dictionary<string, Color?>(StringComparer.OrdinalIgnoreCase);
             workingColors = new Dictionary<string, Color?>(StringComparer.OrdinalIgnoreCase);
+            paletteToolTip = new ToolTip();
+
             IEnumerable<string> tagSequence = tags ?? new string[0];
             foreach(string tag in tagSequence) {
                 Color? color = null;
                 if(existingColors != null && existingColors.TryGetValue(tag, out color)) {
-                    // nothing else to do
+                    // Preserve existing value
                 }
                 initialColors[tag] = color;
                 workingColors[tag] = color;
             }
+
+            int margin = 12;
+            int contentWidth = ClientSize.Width - (margin * 2);
 
             lstTags = new ListView {
                 View = View.Details,
                 FullRowSelect = true,
                 HideSelection = false,
                 MultiSelect = true,
-                Left = 12,
-                Top = 12,
-                Width = 380,
-                Height = 200,
+                Left = margin,
+                Top = margin,
+                Width = contentWidth,
+                Height = 190,
                 HeaderStyle = ColumnHeaderStyle.Nonclickable
             };
-            lstTags.Columns.Add("Tag", 220, HorizontalAlignment.Left);
-            lstTags.Columns.Add("Color", 140, HorizontalAlignment.Left);
+            int colorColumnWidth = Math.Max(120, lstTags.Width / 3);
+            lstTags.Columns.Add("Tag", lstTags.Width - colorColumnWidth - 4, HorizontalAlignment.Left);
+            lstTags.Columns.Add("Color", colorColumnWidth, HorizontalAlignment.Left);
             PopulateList();
+
+            Label lblPalette = new Label {
+                Text = "Quick palette:",
+                AutoSize = true,
+                Left = margin,
+                Top = lstTags.Bottom + 8
+            };
+
+            FlowLayoutPanel defaultPalettePanel = CreatePalettePanel(TagColorPalette.GetDefaultPalette(), "Palette color");
+            defaultPalettePanel.Left = margin;
+            defaultPalettePanel.Top = lblPalette.Bottom + 4;
+            defaultPalettePanel.Width = contentWidth;
+
+            Label lblHighContrast = new Label {
+                Text = "High contrast palette:",
+                AutoSize = true,
+                Left = margin,
+                Top = defaultPalettePanel.Bottom + 6
+            };
+
+            FlowLayoutPanel highContrastPanel = CreatePalettePanel(TagColorPalette.GetHighContrastPalette(), "High contrast color");
+            highContrastPanel.Left = margin;
+            highContrastPanel.Top = lblHighContrast.Bottom + 4;
+            highContrastPanel.Width = contentWidth;
+
+            int buttonRowTop = highContrastPanel.Bottom + 12;
 
             btnSetColor = new Button {
                 Text = "Choose Color...",
-                Left = 12,
-                Top = lstTags.Bottom + 8,
-                Width = 120
+                Left = margin,
+                Top = buttonRowTop,
+                Width = 124
             };
             btnSetColor.Click += (sender, args) => ChooseColorForSelection();
 
@@ -64,27 +98,31 @@ namespace QTTabBarLib {
                 Text = "Clear",
                 Left = btnSetColor.Right + 8,
                 Top = btnSetColor.Top,
-                Width = 80
+                Width = 90
             };
             btnClearColor.Click += (sender, args) => ClearColorForSelection();
 
             btnOk = new Button {
                 Text = "OK",
-                Width = 80,
+                Width = 90,
                 DialogResult = DialogResult.OK
             };
             btnCancel = new Button {
                 Text = "Cancel",
-                Width = 80,
+                Width = 90,
                 DialogResult = DialogResult.Cancel
             };
 
-            btnOk.Left = ClientSize.Width - 190;
-            btnOk.Top = ClientSize.Height - 50;
-            btnCancel.Left = btnOk.Right + 10;
-            btnCancel.Top = btnOk.Top;
+            btnCancel.Left = ClientSize.Width - margin - btnCancel.Width;
+            btnCancel.Top = buttonRowTop;
+            btnOk.Left = btnCancel.Left - 10 - btnOk.Width;
+            btnOk.Top = buttonRowTop;
 
             Controls.Add(lstTags);
+            Controls.Add(lblPalette);
+            Controls.Add(defaultPalettePanel);
+            Controls.Add(lblHighContrast);
+            Controls.Add(highContrastPanel);
             Controls.Add(btnSetColor);
             Controls.Add(btnClearColor);
             Controls.Add(btnOk);
@@ -124,6 +162,12 @@ namespace QTTabBarLib {
             using(ColorDialog dialog = new ColorDialog { FullOpen = true }) {
                 if(lastChosenColor.HasValue) {
                     dialog.Color = lastChosenColor.Value;
+                }
+                else {
+                    Color? suggestion = TagColorPalette.SuggestColor(workingColors.Values);
+                    if(suggestion.HasValue) {
+                        dialog.Color = suggestion.Value;
+                    }
                 }
                 if(dialog.ShowDialog(this) != DialogResult.OK) {
                     return;
@@ -183,5 +227,79 @@ namespace QTTabBarLib {
             Color c = color.Value;
             return "#" + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
         }
+
+        private FlowLayoutPanel CreatePalettePanel(IEnumerable<Color> palette, string accessiblePrefix) {
+            FlowLayoutPanel panel = new FlowLayoutPanel {
+                Height = 36,
+                AutoSize = false,
+                WrapContents = false,
+                AutoScroll = true,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            foreach(Color color in palette ?? Enumerable.Empty<Color>()) {
+                Button button = CreatePaletteButton(color, accessiblePrefix);
+                panel.Controls.Add(button);
+            }
+            return panel;
+        }
+
+        private Button CreatePaletteButton(Color color, string accessiblePrefix) {
+            Button button = new Button {
+                Width = 28,
+                Height = 28,
+                Margin = new Padding(2),
+                BackColor = color,
+                FlatStyle = FlatStyle.Flat,
+                Tag = color,
+                UseVisualStyleBackColor = false,
+                Text = string.Empty
+            };
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderColor = ControlPaint.Dark(color);
+            button.AccessibleName = accessiblePrefix + " " + ColorToDisplay(color);
+            paletteToolTip.SetToolTip(button, ColorToDisplay(color));
+            button.Click += PaletteButton_Click;
+            return button;
+        }
+
+        private void PaletteButton_Click(object sender, EventArgs e) {
+            Button button = sender as Button;
+            if(button == null) {
+                return;
+            }
+            Color color = (Color)button.Tag;
+            ApplyPaletteColor(color);
+        }
+
+        private void ApplyPaletteColor(Color color) {
+            if(lstTags.SelectedItems.Count == 0) {
+                try {
+                    SystemSounds.Beep.Play();
+                }
+                catch { }
+                lastChosenColor = color;
+                return;
+            }
+            lastChosenColor = color;
+            foreach(ListViewItem item in lstTags.SelectedItems) {
+                string tag = item.Tag as string;
+                if(string.IsNullOrEmpty(tag)) {
+                    continue;
+                }
+                workingColors[tag] = color;
+                item.SubItems[1].Text = ColorToDisplay(color);
+            }
+        }
+
+        protected override void Dispose(bool disposing) {
+            if(disposing) {
+                if(paletteToolTip != null) {
+                    paletteToolTip.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
     }
 }
+
