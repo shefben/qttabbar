@@ -268,8 +268,10 @@ namespace QTTabBarLib {
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             // 双屏幕打开逻辑问题
-            /*var bMulScreens = Screen.AllScreens.Length > 1;
-            var screenWidth = 0;
+            // var bMulScreens = Screen.AllScreens.Length > 1;
+            // var screenWidth = 0;
+        }
+
         private void generateInitConfig() {
             if(WorkingConfig == null) {
                 return;
@@ -325,46 +327,6 @@ namespace QTTabBarLib {
                 return Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
             }
             return Convert.ToString(value, CultureInfo.InvariantCulture);
-        }
-        #endregion
-
-        private void UpdateOptions() {
-            foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                tab.CommitConfig();
-            }
-
-                        if (null != po)
-                            if (_configProperty.PropertyType == typeof(String))
-                            {
-                                b.Append("\"").Append(_configProperty.GetValue(_configObj, null)).Append("\"");
-                            }
-                            else if (_configProperty.PropertyType.IsArray) /* property type is array. */
-                            {
-                                /* join like this "new System.Int32[] {1, 2, 3}; " */
-                                Array arr = (Array)_configProperty.GetValue(_configObj, null);
-                                b.Append("new ").Append(arr.GetType()).Append("{");
-                                for (int i = 0; i < arr.Length; i++)
-                                {
-                                    b.Append(arr.GetValue(i)).Append(",");
-                                }
-                                b.Append("}");
-                            }
-                            else
-                            {
-                                b.Append(_configProperty.GetValue(_configObj, null).ToString().ToLower());
-                            }
-                        else
-                        {
-                            b.Append("null");
-                        }
-                        b.Append(";");
-                        sw.WriteLine(_configProperty.Name + "\t=\t" + b.ToString());
-                    }// end for each 
-                }
-                sw.WriteLine();
-            }
-            sw.Flush();
-            sw.Close();         
         }
         #endregion
 
