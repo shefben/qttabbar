@@ -177,18 +177,30 @@ namespace QTTabBarLib {
 
              //   QTUtility2.log("set title end");           
                 int i = 0;
-                tabbedPanel.ItemsSource = new OptionsDialogTab[] {
-                    new Options01_Window        { Index = i++},
-                WorkingConfig = (ConfigManager.LoadedConfig ?? new Config()).Clone();
+                Config loadedConfig = ConfigManager.LoadedConfig;
+                WorkingConfig = (loadedConfig != null)
+                        ? QTUtility2.DeepClone(loadedConfig)
+                        : new Config();
+                tabbedPanel.ItemsSource = new OptionsDialogTab[] {
+                    new Options01_Window        { Index = i++},
+                    new Options02_Tabs          { Index = i++},
+                    new Options03_Tweaks        { Index = i++},
+                    new Options04_Tooltips      { Index = i++},
+                    new Options05_General       { Index = i++},
+                    new Options06_Appearance    { Index = i++},
+                    new Options07_Mouse         { Index = i++},
+                    new Options08_Keys          { Index = i++},
+                    new Options09_Groups        { Index = i++}, // can not use dll
+                    new Options10_Apps          { Index = i++},
+                    new Options11_ButtonBar     { Index = i++},
+                    new Options12_Plugins       { Index = i++},
+                    new Options13_Language      { Index = i++},
+                    new Options15_Sessions      { Index = i++},
+                    new Options14_About         { Index = i++}
+                };
+                foreach(OptionsDialogTab tab in tabbedPanel.Items) {
+                    tab.WorkingConfig = WorkingConfig;
 
-                    new Options03_Tweaks        { Index = i++},
-                    new Options04_Tooltips      { Index = i++},
-                    new Options05_General       { Index = i++},
-                    new Options06_Appearance    { Index = i++},
-                    new Options07_Mouse         { Index = i++},
-                    new Options08_Keys          { Index = i++},
-                    new Options09_Groups        { Index = i++}, // can not use dll
-                    new Options10_Apps          { Index = i++},
                     new Options11_ButtonBar     { Index = i++},
                     new Options12_Plugins       { Index = i++},
                     new Options13_Language      { Index = i++},
@@ -253,65 +265,70 @@ namespace QTTabBarLib {
             // 双屏幕打开逻辑问题
             /*var bMulScreens = Screen.AllScreens.Length > 1;
             var screenWidth = 0;
-            if (bMulScreens)
-            {
-                for (var i = 0; i < Screen.AllScreens.Length; i++)
-                {
-                    screenWidth += Screen.AllScreens[i].WorkingArea.Width;
+        private void generateInitConfig() {
+            if(WorkingConfig == null) {
+                return;
+            }
+            using(StreamWriter sw = File.CreateText("c:\\qttabbar_default_config_init.txt")) {
+                PropertyInfo[] configProperties = WorkingConfig.GetType().GetProperties();
+                foreach(PropertyInfo categoryProperty in configProperties) {
+                    object categoryInstance = categoryProperty.GetValue(WorkingConfig, null);
+                    if(categoryInstance == null) {
+                        sw.WriteLine();
+                        continue;
+                    }
+                    sw.WriteLine(categoryInstance);
+                    PropertyInfo[] categoryValues = categoryInstance.GetType().GetProperties();
+                    foreach(PropertyInfo configProperty in categoryValues) {
+                        object value = configProperty.GetValue(categoryInstance, null);
+                        string formatted = FormatConfigValue(value, configProperty.PropertyType);
+                        sw.WriteLine(configProperty.Name + "\t=\t" + formatted + ";");
+                    }
+                    sw.WriteLine();
                 }
             }
-            else
-            {
-                screenWidth += Screen.PrimaryScreen.WorkingArea.Width;
-            }
-
-            Rectangle rect = Screen.PrimaryScreen.Bounds;
-            this.Left = ((screenWidth - this.Width) / 2) - 10;
-            this.Top = 0; */
-
-            // StartPosition = FormStartPosition.CenterParent;
-            ///////////////////// change last selected index.
-            // lstCategories.SelectedIndex = WorkingConfig.desktop.lstSelectedIndex;
-
-            ////////////////////////////////////////
-            // generateInitConfig();
-            // 设置 Esc 关闭窗口
-            this.KeyDown += ModifyPrice_KeyDown;
         }
 
-        private void ModifyPrice_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape)//Esc键  
-            {
-                this.Close();
+        private static string FormatConfigValue(object value, Type propertyType) {
+            if(value == null) {
+                return "null";
             }
+            if(propertyType == typeof(string)) {
+                return "\"" + value + "\"";
+            }
+            if(propertyType.IsArray) {
+                Array array = value as Array;
+                if(array == null) {
+                    return "null";
+                }
+                StringBuilder builder = new StringBuilder();
+                builder.Append("new ").Append(propertyType).Append(" {");
+                for(int i = 0; i < array.Length; i++) {
+                    if(i > 0) {
+                        builder.Append(", ");
+                    }
+                    object element = array.GetValue(i);
+                    builder.Append(element);
+                }
+                builder.Append("}");
+                return builder.ToString();
+            }
+            if(propertyType == typeof(bool)) {
+                return Convert.ToBoolean(value, CultureInfo.InvariantCulture) ? "true" : "false";
+            }
+            if(propertyType.IsEnum) {
+                return Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+            }
+            return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
+        #endregion
+    }
 
-        /// <summary>
-        /// 反射当前的 WorkingConfig 配置的内部属性所有的值
-        /// 如果内部的值为空则生成赋空.
-        /// Author: qwop
-        /// Date:   2012-07-03
-        /// </summary>
-        private void generateInitConfig() {
-            StreamWriter sw = File.CreateText("c:\\qttabbar_default_config_init.txt");
-
-            PropertyInfo[] configProperties = WorkingConfig.GetType().GetProperties();
-            Object _configObj = null;
-            PropertyInfo[] _configObjProperties = null;
-            foreach (PropertyInfo p in configProperties)
-            {
-                _configObj = p.GetValue(WorkingConfig, null);
-
-                if (_configObj != null)
-                {
-                    _configObjProperties = _configObj.GetType().GetProperties();
-                    sw.WriteLine(_configObj);
-                    foreach (PropertyInfo _configProperty in _configObjProperties)
-                    {
-                        StringBuilder b = new StringBuilder();
-
-            ConfigManager.LoadedConfig = (WorkingConfig ?? new Config()).Clone();
+    internal partial class OptionsDialog {
+        private void UpdateOptions() {
+            foreach(OptionsDialogTab tab in tabbedPanel.Items) {
+                tab.CommitConfig();
+            }
 
                         if (null != po)
                             if (_configProperty.PropertyType == typeof(String))
@@ -859,7 +876,7 @@ namespace QTTabBarLib {
         }
 
         // Utility method to move nodes up and down in a TreeView.
-        protected static void UpDownOnTreeView(TreeView tvw, bool up, bool traverseFolders) {
+}
             ITreeViewItem sel = tvw.SelectedItem as ITreeViewItem;
             if(sel == null) return;
             IList list = sel.ParentList;

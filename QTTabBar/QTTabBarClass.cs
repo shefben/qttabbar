@@ -125,7 +125,7 @@ namespace QTTabBarLib {
         
         
         private TreeViewWrapper treeViewWrapper;
-        /*// 添加到分组
+        // 添加到分组
         private ToolStripMenuItem tsmiAddToGroup;
         private ToolStripMenuItem tsmiBrowseFolder;
         private ToolStripMenuItem tsmiCloneThis;
@@ -151,16 +151,16 @@ namespace QTTabBarLib {
         private ToolStripMenuItem tsmiTabOrder;
         private ToolStripMenuItem tsmiUndoClose;
 
-        /*add by qwop 2012.07.13#1#
+        /*add by qwop 2012.07.13#1#*/
         private ToolStripMenuItem tsmiOpenCmd;
         private ToolStripMenuItem enableApiHook;
-        /*add by qwop 2012.07.13#1#
+        /*add by qwop 2012.07.13#1#*/
 
         private ToolStripSeparator tssep_Sys1;
         private ToolStripSeparator tssep_Sys2;
         private ToolStripSeparator tssep_Tab1;
         private ToolStripSeparator tssep_Tab2;
-        private ToolStripSeparator tssep_Tab3;*/
+        private ToolStripSeparator tssep_Tab3;
         private readonly int WM_NEWTREECONTROL = PInvoke.RegisterWindowMessage("QTTabBar_NewTreeControl");
         private readonly int WM_BROWSEOBJECT = PInvoke.RegisterWindowMessage("QTTabBar_BrowseObject");
         private readonly int WM_HEADERINALLVIEWS = PInvoke.RegisterWindowMessage("QTTabBar_HeaderInAllViews");
@@ -6235,7 +6235,6 @@ namespace QTTabBarLib {
             }
             if(assignedTabs.Count > 0) {
                 tabControl1.AssignGroupTabs(groupName, assignedTabs);
-            }
             }
         }
 
