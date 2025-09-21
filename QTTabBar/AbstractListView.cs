@@ -115,5 +115,9 @@ namespace QTTabBarLib {
         public virtual void RefreshViewWatermark(bool fClear)
         {
         }
+
+        public virtual void RefreshTagColors()
+        {
+        }
     }
 }

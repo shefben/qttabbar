@@ -1637,6 +1637,7 @@ namespace QTTabBarLib {
                     tab.UpdateTagColor(false);
                 }
                 tabControl1.Invalidate();
+                listView?.RefreshTagColors();
             }
             catch { }
         }

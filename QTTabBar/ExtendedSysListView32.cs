@@ -28,7 +28,11 @@ namespace QTTabBarLib {
 
         private static SolidBrush sbAlternate;
         private static SolidBrush sbTagBack;
-        private Dictionary<int, bool> tagCache;
+        private struct TagVisualInfo {
+            public bool HasTag;
+            public Color? TextColor;
+        }
+        private Dictionary<int, TagVisualInfo> tagInfoCache;
         private NativeWindowController EditController;
         private List<int> lstColumnFMT;
         private bool fListViewHasFocus;
@@ -131,6 +135,7 @@ namespace QTTabBarLib {
                     if(Config.Tweaks.AlternateRowColors && (ShellBrowser.ViewMode == FVM.DETAILS)) {
                         PInvoke.InvalidateRect(nmhdr.hwndFrom, IntPtr.Zero, true);
                     }
+                    InvalidateTagInfoCache();
                     ShellViewController.DefWndProc(ref msg);
                     OnItemCountChanged();
                     return true;
@@ -212,6 +217,7 @@ namespace QTTabBarLib {
                     // TODO
                     NMLVDISPINFO nmlvdispinfo2 = (NMLVDISPINFO)Marshal.PtrToStructure(msg.LParam, typeof(NMLVDISPINFO));
                     OnEndLabelEdit(nmlvdispinfo2.item);
+                    InvalidateTagInfoCache();
                     break;
                 }
             }
@@ -476,16 +482,22 @@ namespace QTTabBarLib {
 
                         if(!QTUtility.IsXP) {
                             int num4 = lstColumnFMT[structure.iSubItem];
+                            int itemIndex = (int)structure.nmcd.dwItemSpec;
+                            TagVisualInfo tagInfo = GetTagInfo(itemIndex);
+                            bool isTagged = tagInfo.HasTag;
+                            Color? tagColor = tagInfo.TextColor;
+                            bool isSelectedState = (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) != 0;
                             structure.clrTextBk = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowBackgroundColor);
                             structure.clrText = QTUtility2.MakeCOLORREF(Config.Tweaks.AltRowForegroundColor);
-                            // Tag-based coloring toggles
-                            if (TagManager.HighlightTagged || TagManager.DimUntagged) {
-                                bool isTagged = IsTagged((int)structure.nmcd.dwItemSpec);
-                                if (TagManager.HighlightTagged && isTagged) {
-                                    structure.clrTextBk = QTUtility2.MakeCOLORREF(Color.LightGoldenrodYellow);
+                            if(!isSelectedState) {
+                                if(tagColor.HasValue) {
+                                    structure.clrText = QTUtility2.MakeCOLORREF(tagColor.Value);
                                 }
-                                if (TagManager.DimUntagged && !isTagged) {
+                                else if(TagManager.DimUntagged && !isTagged) {
                                     structure.clrText = QTUtility2.MakeCOLORREF(Color.Gray);
+                                }
+                                if(TagManager.HighlightTagged && isTagged) {
+                                    structure.clrTextBk = QTUtility2.MakeCOLORREF(GetTagBackgroundColor(tagColor));
                                 }
                             }
                             Marshal.StructureToPtr(structure, msg.LParam, false);
@@ -579,9 +591,21 @@ namespace QTTabBarLib {
                                 if (applyCompareStyle && !isSelected) {
                                     graphics2.FillRectangle(GetCompareBrush(compareStyle.Background), rect);
                                 }
-                                else if (TagManager.HighlightTagged && IsTagged(dwItemSpec)) {
-                                    if (sbTagBack == null || sbTagBack.Color != Color.LightGoldenrodYellow) sbTagBack = new SolidBrush(Color.LightGoldenrodYellow);
-                                    graphics2.FillRectangle(sbTagBack, rect);
+                                else if (TagManager.HighlightTagged) {
+                                    TagVisualInfo tagInfo = GetTagInfo(dwItemSpec);
+                                    if (tagInfo.HasTag) {
+                                        Color highlightColor = GetTagBackgroundColor(tagInfo.TextColor);
+                                        if (sbTagBack == null || sbTagBack.Color != highlightColor) {
+                                            if (sbTagBack != null) {
+                                                sbTagBack.Dispose();
+                                            }
+                                            sbTagBack = new SolidBrush(highlightColor);
+                                        }
+                                        graphics2.FillRectangle(sbTagBack, rect);
+                                    }
+                                    else {
+                                        graphics2.FillRectangle(sbAlternate, rect);
+                                    }
                                 }
                                 else {
                                     graphics2.FillRectangle(sbAlternate, rect);
@@ -762,6 +786,53 @@ namespace QTTabBarLib {
             }
         }
 
+        public override void RefreshTagColors() {
+            InvalidateTagInfoCache();
+            base.RefreshTagColors();
+            if(ListViewController != null) {
+                PInvoke.InvalidateRect(ListViewController.Handle, IntPtr.Zero, true);
+            }
+        }
+
+        private TagVisualInfo GetTagInfo(int index) {
+            if(index < 0) {
+                return default(TagVisualInfo);
+            }
+            if(tagInfoCache == null) {
+                tagInfoCache = new Dictionary<int, TagVisualInfo>();
+            }
+            TagVisualInfo info;
+            if(tagInfoCache.TryGetValue(index, out info)) {
+                return info;
+            }
+            info = default(TagVisualInfo);
+            try {
+                using(IDLWrapper wrapper = ShellBrowser.GetItem(index)) {
+                    string path = wrapper != null ? wrapper.Path : null;
+                    if(!string.IsNullOrEmpty(path)) {
+                        info.TextColor = TagManager.GetTagColorForPath(path);
+                        info.HasTag = info.TextColor.HasValue || TagManager.HasTags(path);
+                    }
+                }
+            }
+            catch {
+                info = default(TagVisualInfo);
+            }
+            tagInfoCache[index] = info;
+            return info;
+        }
+
+        private static Color GetTagBackgroundColor(Color? tagColor) {
+            Color baseColor = tagColor ?? Color.LightGoldenrodYellow;
+            return ControlPaint.LightLight(baseColor);
+        }
+
+        private void InvalidateTagInfoCache() {
+            if(tagInfoCache != null) {
+                tagInfoCache.Clear();
+            }
+        }
+
         private SolidBrush GetCompareBrush(Color color) {
             int key = color.ToArgb();
             SolidBrush brush;
@@ -782,11 +853,7 @@ namespace QTTabBarLib {
             try { using (IDLWrapper w = ShellBrowser.GetShellPath()) { return w.Available ? w.Path : string.Empty; } } catch { return string.Empty; }
         }
         private bool IsTagged(int index) {
-            if (index < 0) return false;
-            if (tagCache == null) tagCache = new Dictionary<int, bool>();
-            bool v; if (tagCache.TryGetValue(index, out v)) return v;
-            try { using (IDLWrapper w = ShellBrowser.GetItem(index)) { string p = w != null ? w.Path : null; v = !string.IsNullOrEmpty(p) && !string.IsNullOrEmpty(TagManager.GetTagSummary(p)); } } catch { v = false; }
-            tagCache[index] = v; return v;
+            return GetTagInfo(index).HasTag;
         }
 
         public override int HitTest(Point pt, bool screenCoords) {
