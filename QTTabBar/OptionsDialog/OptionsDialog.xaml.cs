@@ -177,6 +177,10 @@ namespace QTTabBarLib {
 
              //   QTUtility2.log("set title end");           
                 int i = 0;
+                Config loadedConfig = ConfigManager.LoadedConfig;
+                WorkingConfig = (loadedConfig != null)
+                        ? QTUtility2.DeepClone(loadedConfig)
+                        : new Config();
                 tabbedPanel.ItemsSource = new OptionsDialogTab[] {
                     new Options01_Window        { Index = i++},
                     new Options02_Tabs          { Index = i++},
@@ -194,13 +198,8 @@ namespace QTTabBarLib {
                     new Options15_Sessions      { Index = i++},
                     new Options14_About         { Index = i++}
                 };
-
-                Config loadedConfig = ConfigManager.LoadedConfig;
-                if(loadedConfig != null) {
-                    WorkingConfig = QTUtility2.DeepClone(loadedConfig);
-                }
                 foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                    new Options10_Apps          { Index = i++},
+                    tab.WorkingConfig = WorkingConfig;
 
                     new Options11_ButtonBar     { Index = i++},
 
@@ -328,7 +327,9 @@ namespace QTTabBarLib {
             return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
         #endregion
+    }
 
+    internal partial class OptionsDialog {
         private void UpdateOptions() {
             foreach(OptionsDialogTab tab in tabbedPanel.Items) {
                 tab.CommitConfig();
@@ -880,7 +881,7 @@ namespace QTTabBarLib {
         }
 
         // Utility method to move nodes up and down in a TreeView.
-        protected static void UpDownOnTreeView(TreeView tvw, bool up, bool traverseFolders) {
+}
             ITreeViewItem sel = tvw.SelectedItem as ITreeViewItem;
             if(sel == null) return;
             IList list = sel.ParentList;
