@@ -23,6 +23,7 @@
 //    along with QTTabBar.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -412,6 +413,86 @@ namespace QTTabBarLib {
             plugin = new _Plugin();
             lang = new _Lang();
             desktop = new _Desktop();
+        }
+
+        public Config Clone() {
+            var clone = new Config();
+            CopyCategory(window, clone.window);
+            CopyCategory(tabs, clone.tabs);
+            CopyCategory(tweaks, clone.tweaks);
+            CopyCategory(tips, clone.tips);
+            CopyCategory(misc, clone.misc);
+            CopyCategory(skin, clone.skin);
+            CopyCategory(bbar, clone.bbar);
+            CopyCategory(mouse, clone.mouse);
+            CopyCategory(keys, clone.keys);
+            CopyCategory(plugin, clone.plugin);
+            CopyCategory(lang, clone.lang);
+            CopyCategory(desktop, clone.desktop);
+            return clone;
+        }
+
+        private static void CopyCategory<T>(T source, T target) where T : class {
+            if(source == null || target == null) return;
+            foreach(PropertyInfo property in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)) {
+                if(!property.CanRead || !property.CanWrite) continue;
+                object value = property.GetValue(source, null);
+                object cloneValue = CloneValue(value);
+                property.SetValue(target, cloneValue, null);
+            }
+        }
+
+        private static object CloneValue(object value) {
+            if(value == null) return null;
+            Type type = value.GetType();
+
+            if(type.IsValueType || type == typeof(string)) {
+                return value;
+            }
+
+            if(value is Font font) {
+                return font.Clone();
+            }
+
+            if(type.IsArray) {
+                Array sourceArray = (Array)value;
+                Type elementType = type.GetElementType();
+                Array cloneArray = Array.CreateInstance(elementType, sourceArray.Length);
+                for(int i = 0; i < sourceArray.Length; i++) {
+                    cloneArray.SetValue(CloneValue(sourceArray.GetValue(i)), i);
+                }
+                return cloneArray;
+            }
+
+            if(typeof(IDictionary).IsAssignableFrom(type)) {
+                IDictionary sourceDict = (IDictionary)value;
+                IDictionary cloneDict = (IDictionary)Activator.CreateInstance(type);
+                foreach(DictionaryEntry entry in sourceDict) {
+                    cloneDict.Add(CloneValue(entry.Key), CloneValue(entry.Value));
+                }
+                return cloneDict;
+            }
+
+            if(typeof(IList).IsAssignableFrom(type)) {
+                IList sourceList = (IList)value;
+                IList cloneList = (IList)Activator.CreateInstance(type);
+                foreach(object item in sourceList) {
+                    cloneList.Add(CloneValue(item));
+                }
+                return cloneList;
+            }
+
+            if(value is ICloneable cloneable) {
+                return cloneable.Clone();
+            }
+
+            object instance = Activator.CreateInstance(type);
+            foreach(PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)) {
+                if(!property.CanRead || !property.CanWrite) continue;
+                object propertyValue = property.GetValue(value, null);
+                property.SetValue(instance, CloneValue(propertyValue), null);
+            }
+            return instance;
         }
 
         [Serializable]

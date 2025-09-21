@@ -230,34 +230,67 @@ namespace QTTabBarLib {
 
         public  void InitializeColors()
         {
+            Color activeColor = NormalizeTabTextColor(Config.Skin.TabTextActiveColor);
+            Color inactiveColor = NormalizeTabTextColor(Config.Skin.TabTextInactiveColor);
+            Color hotColor = NormalizeTabTextColor(Config.Skin.TabTextHotColor);
+
             if (QTUtility.InNightMode)
                 this.colorSet = new Color[5]
                 {
-                    Config.Skin.TabTextActiveColor,
-                    Config.Skin.TabTextInactiveColor,
-                    Config.Skin.TabTextActiveColor, // Config.TabHiliteColor,
+                    activeColor,
+                    inactiveColor,
+                    hotColor,
                     ShellColors.TextShadow,
                     ShellColors.Default,
                 };
             else
                 this.colorSet = new Color[5]
                 {
-                    Config.Skin.TabTextActiveColor,
-                    Config.Skin.TabTextInactiveColor,
-                    Config.Skin.TabTextActiveColor, // Config.TabHiliteColor,
+                    activeColor,
+                    inactiveColor,
+                    hotColor,
                     Config.Skin.TabShadActiveColor,
                     Config.Skin.TabShadInactiveColor
                 };
             if (brshActive == null)
             {
-                brshActive = new SolidBrush(this.colorSet[0]);
-                brshInactv = new SolidBrush(this.colorSet[1]);
+                brshActive = new SolidBrush(activeColor);
+                brshInactv = new SolidBrush(inactiveColor);
             }
             else
             {
-                brshActive.Color = this.colorSet[0];
-                brshInactv.Color = this.colorSet[1];
+                brshActive.Color = activeColor;
+                brshInactv.Color = inactiveColor;
             }
+        }
+
+        private static Color NormalizeTabTextColor(Color color)
+        {
+            Color normalized = color;
+            if (normalized.IsEmpty)
+            {
+                return QTUtility.InNightMode ? ShellColors.NightModeTextColor : Color.Black;
+            }
+
+            if (normalized.A == 0 && (normalized.R != 0 || normalized.G != 0 || normalized.B != 0))
+            {
+                normalized = Color.FromArgb(255, normalized);
+            }
+
+            if (QTUtility.InNightMode)
+            {
+                if (normalized.A < 255)
+                {
+                    normalized = Color.FromArgb(255, normalized);
+                }
+
+                if (normalized.GetBrightness() < 0.65f)
+                {
+                    return ShellColors.NightModeTextColor;
+                }
+            }
+
+            return normalized;
         }
 
         public static Color selectedColor(bool fSelected)
