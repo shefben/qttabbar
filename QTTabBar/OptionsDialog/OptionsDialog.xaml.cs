@@ -200,12 +200,18 @@ namespace QTTabBarLib {
                     WorkingConfig = QTUtility2.DeepClone(loadedConfig);
                 }
                 foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                    new Options10_Apps          { Index = i++},
-                    new Options11_ButtonBar     { Index = i++},
-                    new Options12_Plugins       { Index = i++},
-                    new Options13_Language      { Index = i++},
-                    new Options15_Sessions      { Index = i++},
-                    new Options14_About         { Index = i}
+                    new Options10_Apps          { Index = i++},
+
+                    new Options11_ButtonBar     { Index = i++},
+
+                    new Options12_Plugins       { Index = i++},
+
+                    new Options13_Language      { Index = i++},
+
+                    new Options15_Sessions      { Index = i++},
+
+                    new Options14_About         { Index = i}
+
                 };
 
                // QTUtility2.log("tabbedPanel.ItemsSource end");    
