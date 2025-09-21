@@ -122,7 +122,7 @@ namespace QTTabBarLib {
             if(fallback != null && values.Length < fallback.Length) {
                 string[] extended = new string[fallback.Length];
                 Array.Copy(values, extended, values.Length);
-                Array.Copy(fallback, values.Length, extended, fallback.Length - values.Length);
+                Array.Copy(fallback, values.Length, extended, values.Length, fallback.Length - values.Length);
                 return extended;
             }
 
