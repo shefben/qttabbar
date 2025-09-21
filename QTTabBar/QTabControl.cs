@@ -100,6 +100,7 @@ namespace QTTabBarLib {
         private bool groupingDragActive;
         private Point groupingDragOrigin;
         private TabGroupState groupDropTarget;
+        private readonly EventHandler<TagVisualChangedEventArgs> tagVisualHandler;
 
         [ThreadStatic()]
         private static VisualStyleRenderer vsr_LHot;
@@ -174,6 +175,12 @@ namespace QTTabBarLib {
             {
                 this.sfTypoGraphic.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
             }
+
+            tagVisualHandler = TagManager_TagVisualChanged;
+            try {
+                TagManager.TagVisualChanged += tagVisualHandler;
+            }
+            catch { }
 
             /*if (QTUtility.InNightMode)
             {
@@ -599,6 +606,12 @@ namespace QTTabBarLib {
             if(bmpCloseBtn_Hot != null) {
                 bmpCloseBtn_Hot.Dispose();
                 bmpCloseBtn_Hot = null;
+            }
+            if(disposing && tagVisualHandler != null) {
+                try {
+                    TagManager.TagVisualChanged -= tagVisualHandler;
+                }
+                catch { }
             }
             if(bmpCloseBtn_Pressed != null) {
                 bmpCloseBtn_Pressed.Dispose();
@@ -2286,11 +2299,7 @@ namespace QTTabBarLib {
             TabGroupState state;
             if(!groupStates.TryGetValue(groupName, out state)) {
                 state = new TabGroupState { Name = groupName };
-                state.AccentColor = ResolveGroupAccent(groupName);
                 groupStates[groupName] = state;
-            }
-            else if(state.AccentColor.IsEmpty) {
-                state.AccentColor = ResolveGroupAccent(groupName);
             }
             foreach(var other in groupStates.Values) {
                 if(other == state) {
@@ -2367,6 +2376,118 @@ namespace QTTabBarLib {
                 state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
                 state.Tabs.Sort((a, b) => tabPages.IndexOf(a).CompareTo(tabPages.IndexOf(b)));
                 ApplyGroupCollapseState(state);
+                UpdateGroupAccent(state);
+            }
+        }
+
+        private bool UpdateGroupAccent(TabGroupState state) {
+            if(state == null) {
+                return false;
+            }
+            Color accent;
+            bool useTagColor = TryResolveSharedTagAccent(state, out accent);
+            if(!useTagColor) {
+                accent = ResolveGroupAccent(state.Name);
+            }
+            if(!state.AccentColor.IsEmpty && ColorsEqual(state.AccentColor, accent)) {
+                return false;
+            }
+            state.AccentColor = accent;
+            return true;
+        }
+
+        private static bool TryResolveSharedTagAccent(TabGroupState state, out Color accent) {
+            accent = Color.Empty;
+            if(state == null || state.Tabs == null || state.Tabs.Count == 0) {
+                return false;
+            }
+            Color? candidate = null;
+            foreach(QTabItem tab in state.Tabs) {
+                if(tab == null) {
+                    continue;
+                }
+                Color? tagColor = tab.TagTextColor;
+                if(!tagColor.HasValue && !string.IsNullOrEmpty(tab.CurrentPath)) {
+                    tagColor = TagManager.GetTagColorForPath(tab.CurrentPath);
+                }
+                if(!tagColor.HasValue) {
+                    return false;
+                }
+                if(!candidate.HasValue) {
+                    candidate = tagColor;
+                    continue;
+                }
+                if(candidate.Value.ToArgb() != tagColor.Value.ToArgb()) {
+                    return false;
+                }
+            }
+            if(candidate.HasValue) {
+                accent = candidate.Value;
+                return true;
+            }
+            return false;
+        }
+
+        private static Color GetGroupAccentColor(TabGroupState state) {
+            if(state != null && !state.AccentColor.IsEmpty) {
+                return state.AccentColor;
+            }
+            string name = state != null ? state.Name : null;
+            return ResolveGroupAccent(name);
+        }
+
+        private static bool ColorsEqual(Color left, Color right) {
+            return left.ToArgb() == right.ToArgb();
+        }
+
+        private void TagManager_TagVisualChanged(object sender, TagVisualChangedEventArgs e) {
+            if(IsDisposed) {
+                return;
+            }
+            if(InvokeRequired) {
+                try {
+                    BeginInvoke(new Action(() => HandleTagVisualChanged(e)));
+                }
+                catch { }
+                return;
+            }
+            HandleTagVisualChanged(e);
+        }
+
+        private void HandleTagVisualChanged(TagVisualChangedEventArgs e) {
+            if(IsDisposed) {
+                return;
+            }
+            bool invalidate = false;
+            foreach(TabGroupState state in groupStates.Values) {
+                if(state == null || state.Tabs == null || state.Tabs.Count == 0) {
+                    continue;
+                }
+                if(e != null && !e.RequiresFullRefresh) {
+                    bool relevant = false;
+                    foreach(QTabItem tab in state.Tabs) {
+                        if(tab == null) {
+                            continue;
+                        }
+                        string path = tab.CurrentPath;
+                        if(string.IsNullOrEmpty(path)) {
+                            continue;
+                        }
+                        if(e.AffectsPath(path)) {
+                            relevant = true;
+                            break;
+                        }
+                    }
+                    if(!relevant) {
+                        continue;
+                    }
+                }
+                if(UpdateGroupAccent(state)) {
+                    invalidate = true;
+                }
+            }
+            if(invalidate) {
+                Invalidate();
             }
         }
 
@@ -2486,7 +2607,7 @@ namespace QTTabBarLib {
                         rail.Offset(iScrollWidth, 0);
                     }
                 }
-                Color accent = state.AccentColor.IsEmpty ? ResolveGroupAccent(state.Name) : state.AccentColor;
+                Color accent = GetGroupAccentColor(state);
                 if(!state.IsCollapsed && !island.IsEmpty) {
                     Rectangle background = island;
                     background.Width = Math.Max(background.Width, 4);
@@ -2648,6 +2769,7 @@ namespace QTTabBarLib {
             else if(!string.IsNullOrEmpty(tab.GroupKey)) {
                 RemoveTabFromGroups(tab);
                 CleanupEmptyGroups();
+                SyncGroupOrder();
                 EnsureSelectionForCollapsedGroups();
                 Invalidate();
             }
