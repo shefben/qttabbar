@@ -45,6 +45,10 @@ namespace QTTabBarLib {
             }
         }
 
+        private static bool IsNullOrWhiteSpaceCompat(string value) {
+            return string.IsNullOrEmpty(value) || value.Trim().Length == 0;
+        }
+
         private static void Ensure() {
             if(tagAssignments != null) {
                 return;
@@ -73,7 +77,7 @@ namespace QTTabBarLib {
                 }
 
                 foreach(string line in File.ReadAllLines(TagsFilePath)) {
-                    if(string.IsNullOrWhiteSpace(line)) {
+                    if(IsNullOrWhiteSpaceCompat(line)) {
                         continue;
                     }
                     string[] parts = SplitLegacyAware(line);
@@ -101,7 +105,7 @@ namespace QTTabBarLib {
                 }
                 int version = 1;
                 foreach(string line in File.ReadAllLines(TagDefinitionsPath)) {
-                    if(string.IsNullOrWhiteSpace(line)) {
+                    if(IsNullOrWhiteSpaceCompat(line)) {
                         continue;
                     }
                     if(line.StartsWith("#")) {
@@ -122,7 +126,7 @@ namespace QTTabBarLib {
                         continue;
                     }
                     TagDefinition definition = GetOrCreateDefinition(name);
-                    if(parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1])) {
+                    if(parts.Length > 1 && !IsNullOrWhiteSpaceCompat(parts[1])) {
                         Color color;
                         if(TryParseColor(parts[1], out color)) {
                             definition.Color = color;
@@ -163,7 +167,7 @@ namespace QTTabBarLib {
             HashSet<string> affectedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             List<string> affectedPaths = new List<string>();
             foreach(string rawPath in paths) {
-                if(string.IsNullOrWhiteSpace(rawPath)) {
+                if(IsNullOrWhiteSpaceCompat(rawPath)) {
                     continue;
                 }
                 string path = rawPath.Trim();
@@ -236,7 +240,7 @@ namespace QTTabBarLib {
         }
 
         public static void SetTagColor(string tag, Color? color) {
-            if(string.IsNullOrWhiteSpace(tag)) {
+            if(IsNullOrWhiteSpaceCompat(tag)) {
                 return;
             }
             Ensure();
@@ -322,7 +326,7 @@ namespace QTTabBarLib {
 
         private static bool TryParseColor(string value, out Color color) {
             color = Color.Empty;
-            if(string.IsNullOrWhiteSpace(value)) {
+            if(IsNullOrWhiteSpaceCompat(value)) {
                 return false;
             }
             value = value.Trim();
