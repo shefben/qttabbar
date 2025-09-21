@@ -327,9 +327,7 @@ namespace QTTabBarLib {
             return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
         #endregion
-    }
 
-    internal partial class OptionsDialog {
         private void UpdateOptions() {
             foreach(OptionsDialogTab tab in tabbedPanel.Items) {
                 tab.CommitConfig();
