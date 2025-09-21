@@ -22,6 +22,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Media;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
@@ -98,6 +99,99 @@ namespace QTTabBarLib.Interop {
             }
             Marshal.Copy(data, 0, zero, length);
             return zero;
+        }
+
+        public static void PromptRename(byte[] idl, IntPtr explorerHandle, string failureMessage) {
+            if(idl == null || idl.Length == 0) {
+                return;
+            }
+
+            try {
+                using(IDLWrapper wrapper = new IDLWrapper(idl, false)) {
+                    if(!wrapper.Available) {
+                        return;
+                    }
+
+                    string path = wrapper.Path;
+                    if(string.IsNullOrEmpty(path)) {
+                        return;
+                    }
+
+                    string directory = Path.GetDirectoryName(path);
+                    string name = Path.GetFileName(path);
+                    if(string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(name)) {
+                        return;
+                    }
+
+                    object shell = null;
+                    object folder = null;
+                    object item = null;
+
+                    try {
+                        Type shellType = Type.GetTypeFromProgID("Shell.Application");
+                        if(shellType == null) {
+                            return;
+                        }
+
+                        shell = Activator.CreateInstance(shellType);
+                        folder = shellType.InvokeMember(
+                                "NameSpace",
+                                BindingFlags.InvokeMethod,
+                                null,
+                                shell,
+                                new object[] { directory });
+
+                        if(folder == null) {
+                            return;
+                        }
+
+                        if(explorerHandle != IntPtr.Zero) {
+                            PInvoke.SetForegroundWindow(explorerHandle);
+                        }
+
+                        Type folderType = folder.GetType();
+                        item = folderType.InvokeMember(
+                                "ParseName",
+                                BindingFlags.InvokeMethod,
+                                null,
+                                folder,
+                                new object[] { name });
+
+                        if(item == null) {
+                            return;
+                        }
+
+                        Type itemType = item.GetType();
+                        itemType.InvokeMember(
+                                "InvokeVerb",
+                                BindingFlags.InvokeMethod,
+                                null,
+                                item,
+                                new object[] { "rename" });
+                    }
+                    finally {
+                        ReleaseComObject(item);
+                        ReleaseComObject(folder);
+                        ReleaseComObject(shell);
+                    }
+                }
+            }
+            catch(Exception exception) {
+                QTUtility2.MakeErrorLog(exception, "ShellMethods.PromptRename");
+                if(!string.IsNullOrEmpty(failureMessage)) {
+                    try {
+                        MessageBox.Show(failureMessage, "QTTabBar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    catch {
+                    }
+                }
+            }
+        }
+
+        private static void ReleaseComObject(object instance) {
+            if(instance != null && Marshal.IsComObject(instance)) {
+                Marshal.FinalReleaseComObject(instance);
+            }
         }
 
         public static bool DeleteFile(List<string> lstPaths, bool fShiftKey, IntPtr hwnd) {
