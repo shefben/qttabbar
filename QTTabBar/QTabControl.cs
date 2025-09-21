@@ -2364,7 +2364,7 @@ namespace QTTabBarLib {
                 return;
             }
             if(tabs == null) {
-                tabs = Array.Empty<QTabItem>();
+                tabs = new QTabItem[0];
             }
             IList<QTabItem> tabList = tabs as IList<QTabItem> ?? new List<QTabItem>(tabs);
             TabGroupState state;
@@ -2749,9 +2749,9 @@ namespace QTTabBarLib {
                 if(union.IsEmpty) {
                     state.IslandBounds = Rectangle.Empty;
                     if(anchor.Width > 0 && anchor.Height > 0) {
-                        int railHeight = Math.Max(anchor.Height - 4, 4);
+                        int anchorRailHeight = Math.Max(anchor.Height - 4, 4);
                         int railX = anchor.Left + Math.Max((anchor.Width - GROUP_RAIL_WIDTH) / 2, 0);
-                        state.RailBounds = new Rectangle(railX, anchor.Top + 2, GROUP_RAIL_WIDTH, railHeight);
+                        state.RailBounds = new Rectangle(railX, anchor.Top + 2, GROUP_RAIL_WIDTH, anchorRailHeight);
                     }
                     else if(state.RailBounds.IsEmpty) {
                         state.RailBounds = Rectangle.Empty;
