@@ -879,7 +879,7 @@ namespace QTTabBarLib {
         }
 
         // Utility method to move nodes up and down in a TreeView.
-}
+        protected static void UpDownOnTreeView(TreeView tvw, bool up, bool traverseFolders) {
             ITreeViewItem sel = tvw.SelectedItem as ITreeViewItem;
             if(sel == null) return;
             IList list = sel.ParentList;
