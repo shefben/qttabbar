@@ -471,6 +471,7 @@
     <Compile Include="Interop\NMITEMACTIVATE.cs" />
     <Compile Include="Interop\NMLISTVIEW.cs" />
     <Compile Include="Interop\NMLVCUSTOMDRAW.cs" />
+    <Compile Include="Interop\NMTVCUSTOMDRAW.cs" />
     <Compile Include="Interop\NMLVDISPINFO.cs" />
     <Compile Include="Interop\NMLVGETINFOTIP.cs" />
     <Compile Include="Interop\NMLVKEYDOWN.cs" />

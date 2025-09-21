@@ -16,6 +16,7 @@
 //    along with QTTabBar.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -31,6 +32,13 @@ namespace QTTabBarLib {
         private NativeWindowController treeController;
         private NativeWindowController parentController;
         private bool fPreventSelChange;
+        private readonly Dictionary<IntPtr, TagVisualInfo> tagInfoCache = new Dictionary<IntPtr, TagVisualInfo>();
+
+        private struct TagVisualInfo {
+            public bool HasPath;
+            public bool HasTag;
+            public Color? TextColor;
+        }
 
         public TreeViewWrapper(IntPtr hwnd, INameSpaceTreeControl treeControl) {
             QTUtility2.log("TreeViewWrapper init");
@@ -39,6 +47,10 @@ namespace QTTabBarLib {
             treeController.MessageCaptured += TreeControl_MessageCaptured;
             parentController = new NativeWindowController(PInvoke.GetParent(hwnd));
             parentController.MessageCaptured += ParentControl_MessageCaptured;
+        }
+
+        private void InvalidateTagInfoCache() {
+            tagInfoCache.Clear();
         }
 
         private bool HandleClick(Point pt, Keys modifierKeys, bool middle) {
@@ -70,11 +82,95 @@ namespace QTTabBarLib {
             return false;
         }
 
+        private TagVisualInfo GetTagInfo(IntPtr itemHandle, RECT itemRect) {
+            TagVisualInfo info;
+            if(itemHandle == IntPtr.Zero) {
+                return default(TagVisualInfo);
+            }
+            if(tagInfoCache.TryGetValue(itemHandle, out info)) {
+                return info;
+            }
+            info = default(TagVisualInfo);
+            if(treeControl == null) {
+                tagInfoCache[itemHandle] = info;
+                return info;
+            }
+            IShellItem item = null;
+            try {
+                int height = itemRect.bottom - itemRect.top;
+                int centerY = itemRect.top + (height > 0 ? height / 2 : 0);
+                Point pt = new Point(Math.Max(itemRect.left + 4, itemRect.left), centerY);
+                if(treeControl.HitTest(pt, out item) == 0 && item != null) {
+                    IntPtr pidl;
+                    if(PInvoke.SHGetIDListFromObject(item, out pidl) == 0 && pidl != IntPtr.Zero) {
+                        using(IDLWrapper wrapper = new IDLWrapper(pidl)) {
+                            string path = wrapper.Path;
+                            if(!string.IsNullOrEmpty(path)) {
+                                info.HasPath = true;
+                                info.TextColor = TagManager.GetTagColorForPath(path);
+                                info.HasTag = info.TextColor.HasValue || TagManager.HasTags(path);
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                info = default(TagVisualInfo);
+            }
+            finally {
+                if(item != null) {
+                    QTUtility2.log("ReleaseComObject item");
+                    Marshal.ReleaseComObject(item);
+                }
+            }
+            tagInfoCache[itemHandle] = info;
+            return info;
+        }
+
+        private static bool ApplyTagTextColor(ref NMTVCUSTOMDRAW draw, TagVisualInfo info) {
+            if(info.TextColor.HasValue) {
+                draw.clrText = QTUtility2.MakeCOLORREF(info.TextColor.Value);
+                return true;
+            }
+            if(TagManager.DimUntagged && info.HasPath && !info.HasTag) {
+                draw.clrText = QTUtility2.MakeCOLORREF(Color.Gray);
+                return true;
+            }
+            return false;
+        }
+
+        private bool HandleCustomDraw(ref Message msg) {
+            try {
+                NMTVCUSTOMDRAW draw = (NMTVCUSTOMDRAW)Marshal.PtrToStructure(msg.LParam, typeof(NMTVCUSTOMDRAW));
+                switch(draw.nmcd.dwDrawStage) {
+                    case CDDS.PREPAINT:
+                        InvalidateTagInfoCache();
+                        msg.Result = (IntPtr)CDRF.NOTIFYITEMDRAW;
+                        return true;
+
+                    case CDDS.ITEMPREPAINT:
+                        msg.Result = (IntPtr)CDRF.DODEFAULT;
+                        bool isSelected = (draw.nmcd.uItemState & 0x0001) != 0; // CDIS_SELECTED
+                        if(!isSelected) {
+                            TagVisualInfo info = GetTagInfo((IntPtr)draw.nmcd.dwItemSpec, draw.nmcd.rc);
+                            if(ApplyTagTextColor(ref draw, info)) {
+                                Marshal.StructureToPtr(draw, msg.LParam, false);
+                            }
+                        }
+                        return true;
+                }
+            }
+            catch {
+            }
+            return false;
+        }
+
         private bool TreeControl_MessageCaptured(ref Message msg) {
             switch(msg.Msg) {
                 case WM.USER:
                     QTUtility2.log("TreeViewWrapper TreeControl_MessageCaptured WM.USER");
                     fPreventSelChange = false;
+                    InvalidateTagInfoCache();
                     break;
 
                 case WM.MBUTTONUP:
@@ -90,6 +186,7 @@ namespace QTTabBarLib {
                         QTUtility2.log("TreeViewWrapper TreeControl_MessageCaptured DESTROY");
                         Marshal.ReleaseComObject(treeControl);
                         treeControl = null;
+                        InvalidateTagInfoCache();
                     }
                     break;
             }
@@ -101,6 +198,12 @@ namespace QTTabBarLib {
                 
                 NMHDR nmhdr = (NMHDR)Marshal.PtrToStructure(msg.LParam, typeof(NMHDR));
                 switch(nmhdr.code) {
+                    case -12: /* NM_CUSTOMDRAW */
+                        if(HandleCustomDraw(ref msg)) {
+                            return true;
+                        }
+                        break;
+
                     case -2: /* NM_CLICK */
                         if(Control.ModifierKeys != Keys.None) {
                             QTUtility2.log("TreeViewWrapper ParentControl_MessageCaptured WM.NOTIFY NM_CLICK");
@@ -128,6 +231,13 @@ namespace QTTabBarLib {
 
         #region IDisposable Members
 
+        public void RefreshTagColors() {
+            InvalidateTagInfoCache();
+            if(treeController != null && treeController.Handle != IntPtr.Zero) {
+                PInvoke.InvalidateRect(treeController.Handle, IntPtr.Zero, true);
+            }
+        }
+
         public void Dispose() {
             if(fDisposed) return;
             if(treeControl != null) {
@@ -135,6 +245,7 @@ namespace QTTabBarLib {
                 Marshal.ReleaseComObject(treeControl);
                 treeControl = null;
             }
+            InvalidateTagInfoCache();
             fDisposed = true;
         }
 
