@@ -5477,6 +5477,10 @@ namespace QTTabBarLib {
                     Rectangle itemBounds = ownerItem.Bounds;
                     Point location = owner.PointToScreen(new Point(itemBounds.Right, itemBounds.Top));
                     shellContextMenu.Open(wrapper, location, owner.Handle, false);
+                    ToolStripDropDown ownerDropDown = owner as ToolStripDropDown;
+                    if(ownerDropDown != null && ownerDropDown.Visible) {
+                        ownerDropDown.Close(ToolStripDropDownCloseReason.CloseCalled);
+                    }
                 }
             }
             catch { }

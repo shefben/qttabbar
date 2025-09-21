@@ -179,7 +179,8 @@ namespace QTTabBarLib {
                 int i = 0;
                 tabbedPanel.ItemsSource = new OptionsDialogTab[] {
                     new Options01_Window        { Index = i++},
-                    new Options02_Tabs          { Index = i++},
+                WorkingConfig = (ConfigManager.LoadedConfig ?? new Config()).Clone();
+
                     new Options03_Tweaks        { Index = i++},
                     new Options04_Tooltips      { Index = i++},
                     new Options05_General       { Index = i++},
@@ -310,7 +311,7 @@ namespace QTTabBarLib {
                     {
                         StringBuilder b = new StringBuilder();
 
-                        object po = _configProperty.GetValue(_configObj, null);
+            ConfigManager.LoadedConfig = (WorkingConfig ?? new Config()).Clone();
 
                         if (null != po)
                             if (_configProperty.PropertyType == typeof(String))
