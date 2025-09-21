@@ -450,7 +450,8 @@ namespace QTTabBarLib {
                 return value;
             }
 
-            if(value is Font font) {
+            Font font = value as Font;
+            if(font != null) {
                 return font.Clone();
             }
 
@@ -482,7 +483,8 @@ namespace QTTabBarLib {
                 return cloneList;
             }
 
-            if(value is ICloneable cloneable) {
+            ICloneable cloneable = value as ICloneable;
+            if(cloneable != null) {
                 return cloneable.Clone();
             }
 

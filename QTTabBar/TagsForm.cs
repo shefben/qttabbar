@@ -12,7 +12,7 @@ namespace QTTabBarLib {
         private readonly string[] targets;
 
         public TagsForm(string[] paths) {
-            targets = paths ?? Array.Empty<string>();
+            targets = paths ?? new string[0];
             Text = "Tags";
             Width = 480;
             Height = 160;

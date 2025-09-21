@@ -5572,7 +5572,7 @@ label_38:
           if (info.IDLs != null && info.IDLs.Count > 0)
           {
             string str = info.Str;
-            if (string.IsNullOrWhiteSpace(str))
+            if (string.IsNullOrEmpty(str) || str.Trim().Length == 0)
             {
               using (NewGroupOrLibraryForm newLibraryForm = NewGroupOrLibraryForm.CreateNewLibraryForm(string.Empty, false))
               {
@@ -5583,7 +5583,7 @@ label_38:
             }
             else
               str = PathString.SanitizeNameString(PathString.LimitLength(str, (int) byte.MaxValue));
-            if (!string.IsNullOrWhiteSpace(str))
+            if (!(string.IsNullOrEmpty(str) || str.Trim().Length == 0))
             {
               List<byte[]> idls = new List<byte[]>();
               foreach (byte[] idL in info.IDLs)
@@ -6582,7 +6582,7 @@ label_38:
           }
           return true;
         case BarCommand.MakeMia:
-          if (info.Strs != null && info.Strs.Length != 0 && !string.IsNullOrWhiteSpace(info.Strs[0]))
+          if (info.Strs != null && info.Strs.Length != 0 && !(string.IsNullOrEmpty(info.Strs[0]) || info.Strs[0].Trim().Length == 0))
           {
             MenuItemArguments mia = new MenuItemArguments(info.Strs[0], info.Strs[1] ?? string.Empty, info.Strs[2] ?? string.Empty, 0, MenuGenre.None);
             if (view != null)
