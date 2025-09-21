@@ -32,7 +32,14 @@ namespace QTTabBarLib {
         private NativeWindowController treeController;
         private NativeWindowController parentController;
         private bool fPreventSelChange;
-        private readonly Dictionary<IntPtr, Color?> tagColorCache = new Dictionary<IntPtr, Color?>();
+        private readonly Dictionary<IntPtr, TreeNodeTagVisual> tagColorCache = new Dictionary<IntPtr, TreeNodeTagVisual>();
+        private readonly EventHandler<TagVisualChangedEventArgs> tagChangedHandler;
+
+        private struct TreeNodeTagVisual {
+            public string Path;
+            public Color? Color;
+            public int VisualHash;
+        }
 
         public TreeViewWrapper(IntPtr hwnd, INameSpaceTreeControl treeControl) {
             QTUtility2.log("TreeViewWrapper init");
@@ -41,6 +48,11 @@ namespace QTTabBarLib {
             treeController.MessageCaptured += TreeControl_MessageCaptured;
             parentController = new NativeWindowController(PInvoke.GetParent(hwnd));
             parentController.MessageCaptured += ParentControl_MessageCaptured;
+            tagChangedHandler = TagManager_TagVisualChanged;
+            try {
+                TagManager.TagVisualChanged += tagChangedHandler;
+            }
+            catch { }
         }
 
         private bool HandleClick(Point pt, Keys modifierKeys, bool middle) {
@@ -93,6 +105,7 @@ namespace QTTabBarLib {
                         Marshal.ReleaseComObject(treeControl);
                         treeControl = null;
                     }
+                    UnsubscribeTagNotifications();
                     tagColorCache.Clear();
                     break;
             }
@@ -158,17 +171,19 @@ namespace QTTabBarLib {
 
         private Color? ResolveTagColor(NMTVCUSTOMDRAW draw) {
             IntPtr handle = draw.nmcd.dwItemSpec;
-            Color? cached;
-            if(tagColorCache.TryGetValue(handle, out cached)) {
-                return cached;
-            }
-            Color? color = null;
             string path = TryGetPathFromDraw(draw);
-            if(!string.IsNullOrEmpty(path)) {
-                color = TagManager.GetTagColorForPath(path);
+            if(string.IsNullOrEmpty(path)) {
+                tagColorCache[handle] = new TreeNodeTagVisual { Path = null, Color = null, VisualHash = 0 };
+                return null;
             }
-            tagColorCache[handle] = color;
-            return color;
+            TagVisualState state = TagManager.GetVisualState(path);
+            TreeNodeTagVisual cached;
+            if(tagColorCache.TryGetValue(handle, out cached) && !string.IsNullOrEmpty(cached.Path) && string.Equals(cached.Path, path, StringComparison.OrdinalIgnoreCase) && cached.VisualHash == state.VisualHash) {
+                return cached.Color;
+            }
+            TreeNodeTagVisual visual = new TreeNodeTagVisual { Path = path, Color = state.ForegroundColor, VisualHash = state.VisualHash };
+            tagColorCache[handle] = visual;
+            return visual.Color;
         }
 
         private string TryGetPathFromDraw(NMTVCUSTOMDRAW draw) {
@@ -212,6 +227,51 @@ namespace QTTabBarLib {
             }
         }
 
+        private void TagManager_TagVisualChanged(object sender, TagVisualChangedEventArgs e) {
+            if(e == null) {
+                e = TagVisualChangedEventArgs.Global;
+            }
+            bool requireRefresh = e.RequiresFullRefresh;
+            if(!requireRefresh && tagColorCache.Count > 0) {
+                List<IntPtr> toRemove = null;
+                foreach(KeyValuePair<IntPtr, TreeNodeTagVisual> entry in tagColorCache) {
+                    string cachedPath = entry.Value.Path;
+                    if(string.IsNullOrEmpty(cachedPath)) {
+                        continue;
+                    }
+                    if(e.AffectsPath(cachedPath)) {
+                        if(toRemove == null) {
+                            toRemove = new List<IntPtr>();
+                        }
+                        toRemove.Add(entry.Key);
+                    }
+                }
+                if(toRemove != null) {
+                    foreach(IntPtr key in toRemove) {
+                        tagColorCache.Remove(key);
+                    }
+                    requireRefresh = true;
+                }
+            }
+            if(requireRefresh) {
+                if(e.RequiresFullRefresh) {
+                    tagColorCache.Clear();
+                }
+                if(treeController != null && treeController.Handle != IntPtr.Zero) {
+                    PInvoke.InvalidateRect(treeController.Handle, IntPtr.Zero, true);
+                }
+            }
+        }
+
+        private void UnsubscribeTagNotifications() {
+            if(tagChangedHandler != null) {
+                try {
+                    TagManager.TagVisualChanged -= tagChangedHandler;
+                }
+                catch { }
+            }
+        }
+
         #region IDisposable Members
 
         public void Dispose() {
@@ -221,6 +281,7 @@ namespace QTTabBarLib {
                 Marshal.ReleaseComObject(treeControl);
                 treeControl = null;
             }
+            UnsubscribeTagNotifications();
             fDisposed = true;
         }
 

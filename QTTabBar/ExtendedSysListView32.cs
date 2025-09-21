@@ -31,6 +31,8 @@ namespace QTTabBarLib {
         private struct TagVisualInfo {
             public bool HasTag;
             public Color? TextColor;
+            public string Path;
+            public int VisualHash;
         }
         private Dictionary<int, TagVisualInfo> tagInfoCache;
         private NativeWindowController EditController;
@@ -47,6 +49,10 @@ namespace QTTabBarLib {
         internal ExtendedSysListView32(ShellBrowserEx ShellBrowser, IntPtr hwndShellView, IntPtr hwndListView, IntPtr hwndSubDirTipMessageReflect)
                 : base(ShellBrowser, hwndShellView, hwndListView, hwndSubDirTipMessageReflect) {
             SetStyleFlags();
+            try {
+                TagManager.TagVisualChanged += TagManager_TagVisualChanged;
+            }
+            catch { }
         }
 
         private int CorrectHotItem(int iItem) {
@@ -820,9 +826,12 @@ namespace QTTabBarLib {
             try {
                 using(IDLWrapper wrapper = ShellBrowser.GetItem(index)) {
                     string path = wrapper != null ? wrapper.Path : null;
+                    info.Path = path;
                     if(!string.IsNullOrEmpty(path)) {
-                        info.TextColor = TagManager.GetTagColorForPath(path);
-                        info.HasTag = info.TextColor.HasValue || TagManager.HasTags(path);
+                        TagVisualState state = TagManager.GetVisualState(path);
+                        info.TextColor = state.ForegroundColor;
+                        info.HasTag = state.HasTag;
+                        info.VisualHash = state.VisualHash;
                     }
                 }
             }
@@ -838,10 +847,58 @@ namespace QTTabBarLib {
             return ControlPaint.LightLight(baseColor);
         }
 
+        private void TagManager_TagVisualChanged(object sender, TagVisualChangedEventArgs e) {
+            if(e == null) {
+                e = TagVisualChangedEventArgs.Global;
+            }
+            bool requireRefresh = e.RequiresFullRefresh;
+            if(tagInfoCache != null) {
+                if(e.RequiresFullRefresh) {
+                    if(tagInfoCache.Count > 0) {
+                        tagInfoCache.Clear();
+                    }
+                }
+                else {
+                    List<int> toRemove = null;
+                    foreach(KeyValuePair<int, TagVisualInfo> entry in tagInfoCache) {
+                        string cachedPath = entry.Value.Path;
+                        if(string.IsNullOrEmpty(cachedPath)) {
+                            continue;
+                        }
+                        if(e.AffectsPath(cachedPath)) {
+                            if(toRemove == null) {
+                                toRemove = new List<int>();
+                            }
+                            toRemove.Add(entry.Key);
+                        }
+                    }
+                    if(toRemove != null) {
+                        foreach(int key in toRemove) {
+                            tagInfoCache.Remove(key);
+                        }
+                        requireRefresh = true;
+                    }
+                }
+            }
+            if(requireRefresh && ListViewController != null && ListViewController.Handle != IntPtr.Zero) {
+                PInvoke.InvalidateRect(ListViewController.Handle, IntPtr.Zero, true);
+            }
+        }
+
         private void InvalidateTagInfoCache() {
             if(tagInfoCache != null) {
                 tagInfoCache.Clear();
             }
+        }
+
+        public override void Dispose(bool fDisposing) {
+            if(fDisposing) {
+                try {
+                    TagManager.TagVisualChanged -= TagManager_TagVisualChanged;
+                }
+                catch { }
+            }
+            base.Dispose(fDisposing);
         }
 
         private SolidBrush GetCompareBrush(Color color) {

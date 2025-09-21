@@ -554,6 +554,8 @@
     </Compile>
     <Compile Include="CompareOverlayManager.cs" />
     <Compile Include="TagManager.cs" />
+    <Compile Include="TagVisualChangedEventArgs.cs" />
+    <Compile Include="TagVisualState.cs" />
     <Compile Include="TagsForm.cs">
       <SubType>Form</SubType>
     </Compile>
