@@ -17,8 +17,30 @@ namespace QTTabBarLib {
         private static Dictionary<string, HashSet<string>> tagAssignments;
         private static Dictionary<string, Color> tagColors;
 
-        public static bool HighlightTagged { get; set; }
-        public static bool DimUntagged { get; set; }
+        private static bool highlightTagged;
+        private static bool dimUntagged;
+
+        public static bool HighlightTagged {
+            get { return highlightTagged; }
+            set {
+                if(highlightTagged == value) {
+                    return;
+                }
+                highlightTagged = value;
+                BroadcastTagChanges();
+            }
+        }
+
+        public static bool DimUntagged {
+            get { return dimUntagged; }
+            set {
+                if(dimUntagged == value) {
+                    return;
+                }
+                dimUntagged = value;
+                BroadcastTagChanges();
+            }
+        }
 
         private static void Ensure() {
             if(tagAssignments != null) return;
@@ -123,6 +145,15 @@ namespace QTTabBarLib {
                 return string.Join(",", set.OrderBy(x => x));
             }
             return string.Empty;
+        }
+
+        public static bool HasTags(string path) {
+            Ensure();
+            if(string.IsNullOrEmpty(path)) {
+                return false;
+            }
+            HashSet<string> set;
+            return tagAssignments.TryGetValue(path, out set) && set.Count > 0;
         }
 
         public static Color? GetTagColorForPath(string path) {
