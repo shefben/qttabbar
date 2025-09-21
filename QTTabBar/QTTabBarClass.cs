@@ -6236,7 +6236,6 @@ namespace QTTabBarLib {
             if(assignedTabs.Count > 0) {
                 tabControl1.AssignGroupTabs(groupName, assignedTabs);
             }
-            }
         }
 
         private bool OpenNewTab(string path, bool blockSelecting = false, bool fForceNew = false) {
