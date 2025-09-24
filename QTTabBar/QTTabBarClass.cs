@@ -64,7 +64,6 @@ namespace QTTabBarLib {
         
         
         private IContainer components;
-        private ContextMenuStripEx contextMenuDropped;
         private QTabItem ContextMenuedTab;
 
         
@@ -355,36 +354,8 @@ namespace QTTabBarLib {
 
        
 
-        /**
-         * 如果拖拽多个文件，则进行新增到应用程序菜单的弹出菜单操作
-         */
-        private void AppendUserApps(IList<string> listDroppedPaths) {
-            WindowUtils.BringExplorerToFront(ExplorerHandle);
-            if(contextMenuDropped == null) {
-                ToolStripMenuItem tsmiDropped = new ToolStripMenuItem { Tag = 1 };
-                contextMenuDropped = new ContextMenuStripEx(components, false);
-                contextMenuDropped.SuspendLayout();
-                contextMenuDropped.Items.Add(tsmiDropped);
-                contextMenuDropped.Items.Add(new ToolStripMenuItem());
-                contextMenuDropped.ItemClicked += (sender, e) => {
-                    if(e.ClickedItem.Tag != null)
-                        AppsManager.CreateNewApp((List<string>)contextMenuDropped.Tag);
-                };
-                contextMenuDropped.ResumeLayout(false);
-            }
 
-            string strMenu = QTUtility.ResMain[22];
-            strMenu += listDroppedPaths.Count > 1
-                    ? listDroppedPaths.Count + QTUtility.ResMain[23] // "items"  新增到应用程序菜单
-                    : Path.GetFileName(listDroppedPaths[0]).Enquote();
 
-            contextMenuDropped.SuspendLayout();
-            contextMenuDropped.Items[0].Text = strMenu;
-            contextMenuDropped.Items[1].Text = QTUtility.ResMain[24];			// Cancel
-            contextMenuDropped.Tag = listDroppedPaths;
-            contextMenuDropped.ResumeLayout();
-            contextMenuDropped.Show(MousePosition);
-        }
 
         // TODO: Kill this.
         private void AsyncComplete_FolderTree(IAsyncResult ar) {
@@ -6302,15 +6273,6 @@ namespace QTTabBarLib {
                     StaticReg.CreateWindowIDLs.RemoveAt(0);
                     using(IDLWrapper idlw = new IDLWrapper(first)) {
                         ShellBrowser.Navigate(idlw, SBSP.NEWBROWSER);
-                    }
-                }
-            }
-            else {
-                // 拖动的如果是文件则判断是否进行添加到程序菜单
-                if(!fOpened && listDroppedPaths.Count > 0) {
-                    List<string> listDroppedPathsFiles = listDroppedPaths.Where(File.Exists).ToList();
-                    if(listDroppedPathsFiles.Count > 0) {
-                        AppendUserApps(listDroppedPathsFiles);
                     }
                 }
             }
