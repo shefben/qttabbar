@@ -189,8 +189,10 @@
             <TabControl.ContentTemplate>
                 <DataTemplate>
                     <ScrollViewer
-                        Content="{Binding}"
-                        VerticalScrollBarVisibility="Auto"/>
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Auto">
+                        <ContentPresenter Content="{Binding}"/>
+                    </ScrollViewer>
                 </DataTemplate>
             </TabControl.ContentTemplate>
         </TabControl>

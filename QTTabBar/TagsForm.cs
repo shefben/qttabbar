@@ -76,6 +76,17 @@ namespace QTTabBarLib {
                 foreach(KeyValuePair<string, Color?> pair in updatedColors) {
                     TagManager.SetTagColor(pair.Key, pair.Value);
                 }
+
+                // Force immediate visual refresh
+                try {
+                    InstanceManager.TabBarBroadcast(tabBar => {
+                        tabBar.RefreshTagVisuals();
+                        // Force repaint to ensure changes are visible immediately
+                        Application.DoEvents();
+                    }, false);
+                }
+                catch { }
+
                 Close();
             }
             catch { }

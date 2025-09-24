@@ -22,34 +22,38 @@ using System.Windows.Forms;
 
 namespace QTTabBarLib {
     internal sealed class CreateNewGroupForm : Form {
-        // È¡Ïû°´Å¥
+        // È¡ï¿½ï¿½ï¿½ï¿½Å¥
         private Button buttonCancel;
-        // È·¶¨°´Å¥
+        // È·ï¿½ï¿½ï¿½ï¿½Å¥
         private Button buttonOK;
-        // ¼ÓÈëËùÓÐ±êÇ©
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½Ç©
         private CheckBox chkAllTabs;
         private Label label1;
-        // Â·¾¶ÐÅÏ¢
+        private Label label2;
+        // Â·ï¿½ï¿½ï¿½ï¿½Ï¢
         private string newPath;
         private QTabControl.QTabCollection Tabs;
-        // ·Ö×éÃû³Æ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         private TextBox textBox1;
+        private Button buttonColorPicker;
+        private Panel panelColorPreview;
+        private Color? selectedColor;
         
         public CreateNewGroupForm(string currentPath, QTabControl.QTabCollection tabs) {
             newPath = currentPath;
             Tabs = tabs;
             InitializeComponent();
-            // Í¨¹ýÂ·¾¶ÏÔÊ¾·Ö×éÃû³Æ
+            // Í¨ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             textBox1.Text = QTUtility2.MakePathDisplayText(newPath, false);
-            string[] strArray = QTUtility.TextResourcesDic["TabBar_NewGroup"]; // ÐÂÔö±êÇ©×é;±êÇ©×éÃû³Æ:;¼ÓÈëËùÓÐ±êÇ©
-            // ÉèÖÃ form ±êÌâÎªÂ·¾¶ÐÅÏ¢
-            Text = strArray[0] + " " + currentPath ; // ÐÂÔö±êÇ©×é Ìí¼ÓÂ·¾¶µÄÃû³Æ
-            label1.Text = strArray[1]; // ±êÇ©×éÃû³Æ
-            chkAllTabs.Text = strArray[2]; // Ñ¡Ôñ¿ò
-            ActiveControl = textBox1;  // ÎÄ±¾¿ò
+            string[] strArray = QTUtility.TextResourcesDic["TabBar_NewGroup"]; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç©ï¿½ï¿½;ï¿½ï¿½Ç©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:;ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½Ç©
+            // ï¿½ï¿½ï¿½ï¿½ form ï¿½ï¿½ï¿½ï¿½ÎªÂ·ï¿½ï¿½ï¿½ï¿½Ï¢
+            Text = strArray[0] + " " + currentPath ; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            label1.Text = strArray[1]; // ï¿½ï¿½Ç©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            chkAllTabs.Text = strArray[2]; // Ñ¡ï¿½ï¿½ï¿½
+            ActiveControl = textBox1;  // ï¿½Ä±ï¿½ï¿½ï¿½
         }
         /**
-         * È·¶¨°´Å¥²Ù×÷
+         * È·ï¿½ï¿½ï¿½ï¿½Å¥ï¿½ï¿½ï¿½ï¿½
          */
         private void buttonOK_Click(object sender, EventArgs e) {
             string key = textBox1.Text;
@@ -59,39 +63,42 @@ namespace QTTabBarLib {
                 tempKey = key + " (" + ++num + ")";
             }
             key = tempKey;
-            GroupsManager.AddGroup(key, chkAllTabs.Checked 
-                    ? Tabs.Select(item => item.CurrentPath) 
-                    : new string[] { newPath });
+            GroupsManager.AddGroup(key, chkAllTabs.Checked
+                    ? Tabs.Select(item => item.CurrentPath)
+                    : new string[] { newPath }, selectedColor);
         }
         /**
-         * ³õÊ¼»¯×é¼þ
+         * ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½
          */
         private void InitializeComponent() {
             buttonOK = new Button();
             buttonCancel = new Button();
             label1 = new Label();
+            label2 = new Label();
             textBox1 = new TextBox();
             chkAllTabs = new CheckBox();
+            buttonColorPicker = new Button();
+            panelColorPreview = new Panel();
             SuspendLayout();
 
-            // 355 * 162  0x133 0x73  ¿í¶ÈÉèÖÃÎªÆÁÄ» 1/3 ¸ß¶ÈÎªÆÁÄ» 1/6
+            // 355 * 162  0x133 0x73  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ä» 1/3 ï¿½ß¶ï¿½Îªï¿½ï¿½Ä» 1/6
             int width = Screen.PrimaryScreen.WorkingArea.Size.Width / 3;
-            int height = Screen.PrimaryScreen.WorkingArea.Size.Height / 6;
+            int height = Screen.PrimaryScreen.WorkingArea.Size.Height / 6 + 40; // Add space for color picker
             ClientSize = new Size(width, height);
             // ClientSize = new Size(0x133, 0x73);
 
             buttonOK.DialogResult = DialogResult.OK;
             buttonOK.Enabled = false;
-            buttonOK.Location = new Point(369, 87); // È·¶¨°´Å¥Î»ÖÃ
+            buttonOK.Location = new Point(369, 127); // Move down for color picker
             buttonOK.Size = new Size(94, 29);
             buttonOK.TabIndex = 0;
-            buttonOK.Text = QTUtility.TextResourcesDic["DialogButtons"][0]; // È·¶¨
+            buttonOK.Text = QTUtility.TextResourcesDic["DialogButtons"][0]; // È·ï¿½ï¿½
             buttonOK.Click += buttonOK_Click;
             buttonCancel.DialogResult = DialogResult.Cancel;
-            buttonCancel.Location = new Point(516, 87);  // È¡Ïû°´Å¥Î»ÖÃ
+            buttonCancel.Location = new Point(516, 127);  // Move down for color picker
             buttonCancel.Size = new Size(94, 29); // 0x17 -> 0x19 by indiff
             buttonCancel.TabIndex = 1;
-            buttonCancel.Text = QTUtility.TextResourcesDic["DialogButtons"][1];// È¡Ïû
+            buttonCancel.Text = QTUtility.TextResourcesDic["DialogButtons"][1];// È¡ï¿½ï¿½
             label1.AutoSize = true;
             label1.Location = new Point(21, 30);
             label1.Size = new Size(0x41, 12);
@@ -103,23 +110,41 @@ namespace QTTabBarLib {
             chkAllTabs.Location = new Point(26, 86);
             chkAllTabs.Size = new Size(109, 24);
             chkAllTabs.TabIndex = 3;
+
+            // Color picker controls
+            label2.AutoSize = true;
+            label2.Location = new Point(21, 60);
+            label2.Size = new Size(100, 12);
+            label2.Text = "Island Color:";
+            buttonColorPicker.Location = new Point(165, 57);
+            buttonColorPicker.Size = new Size(100, 23);
+            buttonColorPicker.TabIndex = 4;
+            buttonColorPicker.Text = "Choose Color...";
+            buttonColorPicker.Click += buttonColorPicker_Click;
+            panelColorPreview.Location = new Point(275, 57);
+            panelColorPreview.Size = new Size(23, 23);
+            panelColorPreview.BorderStyle = BorderStyle.FixedSingle;
+            panelColorPreview.BackColor = Color.LightGray;
             AcceptButton = buttonOK;
            // AutoScaleDimensions = new SizeF(6f, 13f);
-            AutoScaleMode = AutoScaleMode.Font ; // DPI Ä£Ê½»áÔì³É½çÃæÂÒ by indiff
+            AutoScaleMode = AutoScaleMode.Font ; // DPI Ä£Ê½ï¿½ï¿½ï¿½ï¿½É½ï¿½ï¿½ï¿½ï¿½ï¿½ by indiff
             CancelButton = buttonCancel;
 
             Controls.Add(chkAllTabs);
             Controls.Add(textBox1);
             Controls.Add(label1);
+            Controls.Add(label2);
+            Controls.Add(buttonColorPicker);
+            Controls.Add(panelColorPreview);
             Controls.Add(buttonCancel);
             Controls.Add(buttonOK);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowIcon = false;
-            // ÊÇ·ñÏÔÊ¾ÔÚÈÎÎñÀ¸
+            // ï¿½Ç·ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             ShowInTaskbar = false;
-            // ½øÐÐ¾ÓÖÐ
+            // ï¿½ï¿½ï¿½Ð¾ï¿½ï¿½ï¿½
             StartPosition = FormStartPosition.CenterParent;
             ResumeLayout(false);
             PerformLayout();
@@ -127,6 +152,17 @@ namespace QTTabBarLib {
 
         private void textBox1_TextChanged(object sender, EventArgs e) {
             buttonOK.Enabled = textBox1.Text.Length != 0;
+        }
+
+        private void buttonColorPicker_Click(object sender, EventArgs e) {
+            using(ColorDialog colorDialog = new ColorDialog()) {
+                colorDialog.Color = selectedColor.HasValue ? selectedColor.Value : Color.SteelBlue;
+                colorDialog.FullOpen = true;
+                if(colorDialog.ShowDialog() == DialogResult.OK) {
+                    selectedColor = colorDialog.Color;
+                    panelColorPreview.BackColor = selectedColor.Value;
+                }
+            }
         }
     }
 }

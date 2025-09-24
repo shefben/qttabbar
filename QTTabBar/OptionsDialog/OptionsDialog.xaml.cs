@@ -81,23 +81,28 @@ namespace QTTabBarLib {
                         }
                     }
                     else {
-                        instance.Dispatcher.Invoke(new Action(() => {
-                            if(instance.WindowState == WindowState.Minimized) {
-                               // MessageBox.Show("instance" + " -> " + instance.WindowState + " ->" + instance.WindowState) ;
-                                instance.WindowState = WindowState.Normal;
-                            }
-                            else {
-                                instance.Topmost = true;
-                                instance.Activate();
-                                instance.Topmost = false;
+                        try {
+                            instance.Dispatcher.Invoke(new Action(() => {
+                                if(instance.WindowState == WindowState.Minimized) {
+                                   // MessageBox.Show("instance" + " -> " + instance.WindowState + " ->" + instance.WindowState) ;
+                                    instance.WindowState = WindowState.Normal;
+                                }
+                                else {
+                                    instance.Topmost = true;
+                                    instance.Activate();
+                                    instance.Topmost = false;
 
-                                // add by qwop.
+                                    // add by qwop.
 
-                                /*MessageBox.Show("activate" + " -> " + instance.lastSelected);
-                                if (null != instance.lastSelected)
-                                instance.lastSelected.IsSelected = true;*/
-                            }
-                        }));
+                                    /*MessageBox.Show("activate" + " -> " + instance.lastSelected);
+                                    if (null != instance.lastSelected)
+                                    instance.lastSelected.IsSelected = true;*/
+                                }
+                            }));
+                        }
+                        catch (Exception ex) {
+                            QTUtility2.MakeErrorLog(ex, "OptionsDialog Dispatcher.Invoke activation");
+                        }
                     }
                 }
                 finally {
@@ -109,7 +114,12 @@ namespace QTTabBarLib {
         public static void ForceClose() {
             lock(typeof(OptionsDialog)) {
                 if(instance != null) {
-                    instance.Dispatcher.Invoke(new Action(() => instance.Close()));
+                    try {
+                        instance.Dispatcher.Invoke(new Action(() => instance.Close()));
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "OptionsDialog ForceClose");
+                    }
                 }
             }
         }
@@ -133,13 +143,46 @@ namespace QTTabBarLib {
             /***  TO delete */
             // load the remember lastSelectedIndex by qwop.
             // MessageBox.Show("" + lastSelectedIndex);
-            instance.lstCategories.SelectedIndex = instance.WorkingConfig.desktop.lstSelectedIndex;
+            try {
+                if (instance != null && instance.WorkingConfig != null && instance.WorkingConfig.desktop != null) {
+                    instance.lstCategories.SelectedIndex = instance.WorkingConfig.desktop.lstSelectedIndex;
+                }
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "OptionsDialog setting selected index");
+                // Set default index if there's an error
+                if (instance != null && instance.lstCategories != null) {
+                    instance.lstCategories.SelectedIndex = 0;
+                }
+            }
             /***  TO delete */
 
             Dispatcher.Run();
         }
 
         #endregion
+
+        private object GetTabDataContext(OptionsDialogTab tab) {
+            if(WorkingConfig == null) return null;
+
+            if(tab is Options01_Window) return WorkingConfig.window;
+            if(tab is Options02_Tabs) return WorkingConfig.tabs;
+            if(tab is Options03_Tweaks) return WorkingConfig.tweaks;
+            if(tab is Options04_Tooltips) return WorkingConfig.tips;
+            if(tab is Options05_General) return WorkingConfig.misc;
+            if(tab is Options06_Appearance) return WorkingConfig.skin;
+            if(tab is Options07_Mouse) return WorkingConfig.mouse;
+            if(tab is Options08_Keys) return WorkingConfig.keys;
+            if(tab is Options09_Groups) return WorkingConfig.misc;
+            if(tab is Options10_Apps) return WorkingConfig.misc;
+            if(tab is Options11_ButtonBar) return WorkingConfig.bbar;
+            if(tab is Options12_Plugins) return WorkingConfig.plugin;
+            if(tab is Options13_Language) return WorkingConfig.lang;
+            if(tab is Options14_About) return WorkingConfig;
+            if(tab is Options15_Sessions) return WorkingConfig.misc;
+
+            return WorkingConfig;
+        }
 
         private OptionsDialog() {
             try {
@@ -181,6 +224,22 @@ namespace QTTabBarLib {
                 WorkingConfig = (loadedConfig != null)
                         ? QTUtility2.DeepClone(loadedConfig)
                         : new Config();
+
+                // Ensure all config subcategories are initialized
+                if (WorkingConfig != null) {
+                    if (WorkingConfig.misc == null) WorkingConfig.misc = new Config._Misc();
+                    if (WorkingConfig.window == null) WorkingConfig.window = new Config._Window();
+                    if (WorkingConfig.tabs == null) WorkingConfig.tabs = new Config._Tabs();
+                    if (WorkingConfig.tweaks == null) WorkingConfig.tweaks = new Config._Tweaks();
+                    if (WorkingConfig.tips == null) WorkingConfig.tips = new Config._Tips();
+                    if (WorkingConfig.skin == null) WorkingConfig.skin = new Config._Skin();
+                    if (WorkingConfig.mouse == null) WorkingConfig.mouse = new Config._Mouse();
+                    if (WorkingConfig.keys == null) WorkingConfig.keys = new Config._Keys();
+                    if (WorkingConfig.bbar == null) WorkingConfig.bbar = new Config._BBar();
+                    if (WorkingConfig.plugin == null) WorkingConfig.plugin = new Config._Plugin();
+                    if (WorkingConfig.lang == null) WorkingConfig.lang = new Config._Lang();
+                    if (WorkingConfig.desktop == null) WorkingConfig.desktop = new Config._Desktop();
+                }
                 tabbedPanel.ItemsSource = new OptionsDialogTab[] {
                     new Options01_Window        { Index = i++},
                     new Options02_Tabs          { Index = i++},
@@ -198,26 +257,59 @@ namespace QTTabBarLib {
                     new Options15_Sessions      { Index = i++},
                     new Options14_About         { Index = i++}
                 };
-                foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                    tab.WorkingConfig = WorkingConfig;
+                var itemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+                if (itemsSource != null) {
+                    foreach(OptionsDialogTab tab in itemsSource) {
+                        if (tab != null) {
+                            tab.WorkingConfig = WorkingConfig;
+                            tab.DataContext = GetTabDataContext(tab);
+                        }
+                    }
                 }
 
-               // QTUtility2.log("tabbedPanel.ItemsSource end");    
+               // QTUtility2.log("tabbedPanel.ItemsSource end");
 
                 // For some reason, on XP, the Options dialog starts up with a blank tab
                 // This is the only way I've found to fix it
                 // TODO: Investigate and see if there's a better way
                 Loaded += (sender, args) => {
-                    tabbedPanel.SelectedIndex = 1;
-                    tabbedPanel.SelectedIndex = 0;
+                    try {
+                        // Ensure proper initialization when loaded
+                        var loadedItemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+                        if (loadedItemsSource != null) {
+                            foreach(OptionsDialogTab tab in loadedItemsSource) {
+                                if (tab != null) {
+                                    tab.DataContext = GetTabDataContext(tab);
+                                    tab.InitializeConfig();
+                                }
+                            }
+                        }
+                        tabbedPanel.SelectedIndex = 1;
+                        tabbedPanel.SelectedIndex = 0;
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "OptionsDialog Loaded event");
+                    }
                 };
 
                 WorkingConfig = QTUtility2.DeepClone(ConfigManager.LoadedConfig);
-                foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                    tab.WorkingConfig = WorkingConfig;
-                    IHotkeyContainer ihc = tab as IHotkeyContainer;
-                    if(ihc != null) ihc.NewHotkeyRequested += ProcessNewHotkey;
-                    tab.InitializeConfig();
+                var configItemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+                if (configItemsSource != null) {
+                    foreach(OptionsDialogTab tab in configItemsSource) {
+                        if (tab != null) {
+                            tab.WorkingConfig = WorkingConfig;
+                            IHotkeyContainer ihc = tab as IHotkeyContainer;
+                            if(ihc != null) ihc.NewHotkeyRequested += ProcessNewHotkey;
+                            try {
+                                // Set DataContext for proper binding
+                                tab.DataContext = GetTabDataContext(tab);
+                                tab.InitializeConfig();
+                            }
+                            catch (Exception ex) {
+                                QTUtility2.MakeErrorLog(ex, "Tab InitializeConfig: " + tab.GetType().Name);
+                            }
+                        }
+                    }
                 }
               //  QTUtility2.log("InitializeConfig end");
 
@@ -320,12 +412,19 @@ namespace QTTabBarLib {
         #endregion
 
         private void UpdateOptions() {
-            foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                tab.CommitConfig();
+            var updateItemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+            if (updateItemsSource != null) {
+                foreach(OptionsDialogTab tab in updateItemsSource) {
+                    if (tab != null) {
+                        tab.CommitConfig();
+                    }
+                }
             }
-            ConfigManager.LoadedConfig = QTUtility2.DeepClone(WorkingConfig);
-            ConfigManager.WriteConfig();
-            ConfigManager.UpdateConfig();
+            if (WorkingConfig != null) {
+                ConfigManager.LoadedConfig = QTUtility2.DeepClone(WorkingConfig);
+                ConfigManager.WriteConfig();
+                ConfigManager.UpdateConfig();
+            }
         }
 
         private void CategoryListBoxItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e) {
@@ -340,7 +439,9 @@ namespace QTTabBarLib {
             e.Handled = true;
 
             // the last selected list box item.
-            WorkingConfig.desktop.lstSelectedIndex = lstCategories.SelectedIndex;
+            if (WorkingConfig != null && WorkingConfig.desktop != null) {
+                WorkingConfig.desktop.lstSelectedIndex = lstCategories.SelectedIndex;
+            }
         }
 
         private void CategoryListBoxItem_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -459,7 +560,10 @@ namespace QTTabBarLib {
                     QTUtility.TextResourcesDic["OptionsDialog"][3],
                     MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
             if(response == MessageBoxResult.OK) {
-                ((OptionsDialogTab)tabbedPanel.SelectedItem).ResetConfig();   
+                var selectedTab = tabbedPanel.SelectedItem as OptionsDialogTab;
+                if (selectedTab != null) {
+                    selectedTab.ResetConfig();
+                }
             }
         }
 
@@ -469,8 +573,13 @@ namespace QTTabBarLib {
                     QTUtility.TextResourcesDic["OptionsDialog"][3],
                     MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
             if(response == MessageBoxResult.OK) {
-                foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                    tab.ResetConfig();
+                var resetItemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+                if (resetItemsSource != null) {
+                    foreach(OptionsDialogTab tab in resetItemsSource) {
+                        if (tab != null) {
+                            tab.ResetConfig();
+                        }
+                    }
                 }
             }
         }
@@ -486,8 +595,14 @@ namespace QTTabBarLib {
 
         private void btnApply_Click(object sender, RoutedEventArgs e) {
             UpdateOptions();
-            foreach(OptionsDialogTab tab in tabbedPanel.Items) {
-                tab.InitializeConfig();
+            var applyItemsSource = tabbedPanel.ItemsSource as OptionsDialogTab[];
+            if (applyItemsSource != null) {
+                foreach(OptionsDialogTab tab in applyItemsSource) {
+                    if (tab != null) {
+                        tab.DataContext = GetTabDataContext(tab);
+                        tab.InitializeConfig();
+                    }
+                }
             }
         }
 

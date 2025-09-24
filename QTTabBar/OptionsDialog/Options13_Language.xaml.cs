@@ -88,14 +88,15 @@ namespace QTTabBarLib {
 
         public override void InitializeConfig() {
             try {
-                lstPluginFiles.ItemsSource = PluginFiles = 
+                DataContext = WorkingConfig.lang;
+                lstPluginFiles.ItemsSource = PluginFiles =
                         new ObservableCollection<string>(WorkingConfig.lang.PluginLangFiles);
               }
             catch (Exception exception)
             {
                 QTUtility2.MakeErrorLog(exception, "Options13_Language InitializeConfig");
 
-            }           
+            }
        }
 
         public override void ResetConfig() {

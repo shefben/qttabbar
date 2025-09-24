@@ -39,7 +39,7 @@ namespace QTTabBarLib {
         }
 
         public override void InitializeConfig() {
-            // Not needed; everything is done through bindings
+            DataContext = WorkingConfig.skin;
         }
 
         public override void ResetConfig() {

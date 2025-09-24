@@ -30,21 +30,38 @@ namespace QTTabBarLib
       SUBCLASSPROC d = new SUBCLASSPROC(this.subClassProcCore);
       this.gchSubClassProc = GCHandle.Alloc((object) d);
       this.fp = Marshal.GetFunctionPointerForDelegate(d); // <SUBCLASSPROC>
-      if (!PInvoke.SetWindowSubclass(hwnd, this.fp, this.ID, IntPtr.Zero))
-        return;
-      this.Handle = hwnd;
+      if (PInvoke.SetWindowSubclass(hwnd, this.fp, this.ID, IntPtr.Zero)) {
+        this.Handle = hwnd;
+      } else {
+        // Cleanup on failure to prevent memory leak
+        if (this.gchSubClassProc.IsAllocated) {
+          this.gchSubClassProc.Free();
+        }
+        throw new InvalidOperationException("Failed to subclass window");
+      }
     }
 
     public void ReleaseHandle()
     {
       this.Disabled = true;
       this.proc = (WindowSubclass.SubclassingProcedure) null;
-      if (!(this.Handle != IntPtr.Zero) || !PInvoke.RemoveWindowSubclass(this.Handle, this.fp, this.ID))
-        return;
-      this.Handle = IntPtr.Zero;
-      if (!this.gchSubClassProc.IsAllocated)
-        return;
-      this.gchSubClassProc.Free();
+
+      if (this.Handle != IntPtr.Zero) {
+        try {
+          PInvoke.RemoveWindowSubclass(this.Handle, this.fp, this.ID);
+        } catch (Exception ex) {
+          System.Diagnostics.Debug.WriteLine("Failed to remove window subclass: " + ex.Message);
+        }
+        this.Handle = IntPtr.Zero;
+      }
+
+      if (this.gchSubClassProc.IsAllocated) {
+        try {
+          this.gchSubClassProc.Free();
+        } catch (Exception ex) {
+          System.Diagnostics.Debug.WriteLine("Failed to free GCHandle: " + ex.Message);
+        }
+      }
     }
 
     public void ReleaseHandleAsync()

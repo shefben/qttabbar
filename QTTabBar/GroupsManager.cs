@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -28,12 +29,14 @@ namespace QTTabBarLib {
         public Keys ShortcutKey { get; set; }
         public List<string> Paths { get; private set; }
         public bool Startup { get; set; }
+        public Color? IslandColor { get; set; }
 
-        public Group(string name, Keys shortcutKey, bool startup, List<string> paths) {
+        public Group(string name, Keys shortcutKey, bool startup, List<string> paths, Color? islandColor = null) {
             Name = name;
             ShortcutKey = shortcutKey;
             Paths = paths;
             Startup = startup;
+            IslandColor = islandColor;
         }
     }
 
@@ -71,7 +74,15 @@ namespace QTTabBarLib {
                             string name = gkey.GetValue("") as string;
                             if(name == null) continue;
                             Keys shortcut = (Keys)gkey.GetValue("key", Keys.None);
-                            bool startup = gkey.GetValue("startup") != null;                            
+                            bool startup = gkey.GetValue("startup") != null;
+                            Color? islandColor = null;
+                            string colorValue = gkey.GetValue("color") as string;
+                            if(!string.IsNullOrEmpty(colorValue)) {
+                                try {
+                                    islandColor = ColorTranslator.FromHtml(colorValue);
+                                }
+                                catch { /* ignore invalid color values */ }
+                            }
                             List<string> paths = new List<string>();
                             int j = 0;
                             while(true) {
@@ -79,7 +90,7 @@ namespace QTTabBarLib {
                                 if(path == null) break;
                                 paths.Add(path);
                             }
-                            groupList.Add(new Group(name, shortcut, startup, paths));
+                            groupList.Add(new Group(name, shortcut, startup, paths, islandColor));
                         }
                         catch (Exception exception)
                         {
@@ -100,6 +111,7 @@ namespace QTTabBarLib {
                         gkey.SetValue("", g.Name);
                         if(g.ShortcutKey != Keys.None) gkey.SetValue("key", (int)g.ShortcutKey);
                         if(g.Startup) gkey.SetValue("startup", "");
+                        if(g.IslandColor.HasValue) gkey.SetValue("color", ColorTranslator.ToHtml(g.IslandColor.Value));
                         for(int j = 0; j < g.Paths.Count; j++) {
                             gkey.SetValue("" + j, g.Paths[j]);
                         }
@@ -114,9 +126,9 @@ namespace QTTabBarLib {
             // todo: desktop
         }
 
-        public static void AddGroup(string key, IEnumerable<string> paths) {
+        public static void AddGroup(string key, IEnumerable<string> paths, Color? islandColor = null) {
             if(groupDict.ContainsKey(key)) return;
-            Group g = new Group(key, Keys.None, false, paths.ToList());
+            Group g = new Group(key, Keys.None, false, paths.ToList(), islandColor);
             groupList.Add(g);
             groupDict[key] = g;
             SaveGroups();

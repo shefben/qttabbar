@@ -30,6 +30,11 @@ namespace QTTabBarLib {
                     return;
                 }
                 highlightTagged = value;
+                try {
+                    if(Config.Misc != null) {
+                        Config.Misc.HighlightTagged = value;
+                    }
+                } catch { }
                 BroadcastTagChanges(TagVisualChangedEventArgs.Global);
             }
         }
@@ -41,6 +46,11 @@ namespace QTTabBarLib {
                     return;
                 }
                 dimUntagged = value;
+                try {
+                    if(Config.Misc != null) {
+                        Config.Misc.DimUntagged = value;
+                    }
+                } catch { }
                 BroadcastTagChanges(TagVisualChangedEventArgs.Global);
             }
         }
@@ -67,6 +77,23 @@ namespace QTTabBarLib {
                 LoadAssignments();
                 LoadDefinitions();
                 RebuildVisualCache();
+
+                // Sync with config values
+                try {
+                    if(Config.Misc != null) {
+                        highlightTagged = Config.Misc.HighlightTagged;
+                        dimUntagged = Config.Misc.DimUntagged;
+                    }
+                    else {
+                        // Use defaults if Config not ready
+                        highlightTagged = true;
+                        dimUntagged = false;
+                    }
+                } catch {
+                    // Use defaults if Config access fails
+                    highlightTagged = true;
+                    dimUntagged = false;
+                }
             }
         }
 

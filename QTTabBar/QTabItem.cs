@@ -353,17 +353,34 @@ namespace QTTabBarLib {
          * ȡıĴС
          */
         private static SizeF GetTextSize(string str, Graphics g, bool fTitle) {
-            SizeF sizeF; 
-            // fix bug Ч    
+            SizeF sizeF;
+            // fix bug Ч
             if ( !String.IsNullOrEmpty( str )  ) {
-                CharacterRange[] ranges = new CharacterRange[] { new CharacterRange(0, str.Length) };
-                sfMeasure.SetMeasurableCharacterRanges(ranges);
-               
-                Region[] regionArray = g.MeasureCharacterRanges(str, fTitle ? font : fontSubText, rctMeasure, sfMeasure);
-                using(regionArray[0]) {
-                    sizeF = regionArray[0].GetBounds(g).Size;
-                    sizeF.Width += 6f;
-                    return sizeF;
+                try {
+                    // Validate Graphics object and required static fields
+                    if (g == null || sfMeasure == null || (fTitle ? font : fontSubText) == null) {
+                        return SizeF.Empty;
+                    }
+
+                    CharacterRange[] ranges = new CharacterRange[] { new CharacterRange(0, str.Length) };
+                    sfMeasure.SetMeasurableCharacterRanges(ranges);
+
+                    Region[] regionArray = g.MeasureCharacterRanges(str, fTitle ? font : fontSubText, rctMeasure, sfMeasure);
+                    using(regionArray[0]) {
+                        sizeF = regionArray[0].GetBounds(g).Size;
+                        sizeF.Width += 6f;
+                        return sizeF;
+                    }
+                }
+                catch (ArgumentException) {
+                    // Graphics object is invalid or parameters are not valid
+                    // Return a reasonable default size
+                    return new SizeF(Math.Max(str.Length * 7, 50), fTitle ? 16 : 14);
+                }
+                catch (Exception ex) {
+                    // Log other unexpected exceptions but still return a default
+                    QTUtility2.MakeErrorLog(ex, "GetTextSize");
+                    return new SizeF(Math.Max(str.Length * 7, 50), fTitle ? 16 : 14);
                 }
             }
             return SizeF.Empty;
@@ -461,36 +478,64 @@ namespace QTTabBarLib {
         }
 
         public void RefreshRectangle() {
-            using(Graphics graphics = Owner.CreateGraphics()) {
-                float num = 6f;
-                if(Owner.DrawFolderImage) {
-                    num = 26f;
+            try {
+                // Validate Owner before attempting to create graphics
+                if (Owner == null || Owner.IsDisposed) {
+                    // Use default sizes if Owner is not available
+                    TitleTextSize = new SizeF(Math.Max(titleText.Length * 7, 50), 16);
+                    SubTitleTextSize = SizeF.Empty;
+                    TabBounds = new Rectangle(TabBounds.X, TabBounds.Y, (int)TitleTextSize.Width + 20, 24);
+                    return;
                 }
-                else if(tabLocked) {
-                    num = 13f;
-                }
-                if((Owner.EnableCloseButton && !Owner.TabCloseButtonOnHover) && !Owner.TabCloseButtonOnAlt) {
-                    num += 17f;
-                }
-                TitleTextSize = GetTextSize(titleText, graphics, true);
-                SubTitleTextSize = SizeF.Empty;
-                if(Comment.Length > 0) {
-                    SubTitleTextSize = GetTextSize("@ " + Comment, graphics, false);
-                    num += SubTitleTextSize.Width + 3f;
-                }
-                else {
-                    num++;
-                }
-                int width = (int)(TitleTextSize.Width + num);
-                if(Owner.OncePainted && (width > Owner.Width)) {
-                    if(Owner.Width > 40) {
-                        width = Owner.Width - 40;
+
+                using(Graphics graphics = Owner.CreateGraphics()) {
+                    // Additional validation for Graphics object
+                    if (graphics == null) {
+                        // Fallback to default sizes if Graphics creation fails
+                        TitleTextSize = new SizeF(Math.Max(titleText.Length * 7, 50), 16);
+                        SubTitleTextSize = SizeF.Empty;
+                        TabBounds = new Rectangle(TabBounds.X, TabBounds.Y, (int)TitleTextSize.Width + 20, 24);
+                        return;
+                    }
+
+                    float num = 6f;
+                    if(Owner.DrawFolderImage) {
+                        num = 26f;
+                    }
+                    else if(tabLocked) {
+                        num = 13f;
+                    }
+                    if((Owner.EnableCloseButton && !Owner.TabCloseButtonOnHover) && !Owner.TabCloseButtonOnAlt) {
+                        num += 17f;
+                    }
+                    TitleTextSize = GetTextSize(titleText, graphics, true);
+                    SubTitleTextSize = SizeF.Empty;
+                    if(Comment.Length > 0) {
+                        SubTitleTextSize = GetTextSize("@ " + Comment, graphics, false);
+                        num += SubTitleTextSize.Width + 3f;
                     }
                     else {
-                        width = 0x20;
+                        num++;
                     }
+                    int width = (int)(TitleTextSize.Width + num);
+                    if(Owner.OncePainted && (width > Owner.Width)) {
+                        if(Owner.Width > 40) {
+                            width = Owner.Width - 40;
+                        }
+                        else {
+                            width = 0x20;
+                        }
+                    }
+                    TabBounds = new Rectangle(TabBounds.X, TabBounds.Y, width, (int)TitleTextSize.Height);
                 }
-                TabBounds = new Rectangle(TabBounds.X, TabBounds.Y, width, (int)TitleTextSize.Height);
+            }
+            catch (Exception ex) {
+                // Log the exception and use fallback sizing
+                QTUtility2.MakeErrorLog(ex, "RefreshRectangle");
+                // Set reasonable defaults if all else fails
+                TitleTextSize = new SizeF(Math.Max(titleText.Length * 7, 50), 16);
+                SubTitleTextSize = SizeF.Empty;
+                TabBounds = new Rectangle(TabBounds.X, TabBounds.Y, (int)TitleTextSize.Width + 20, 24);
             }
         }
 

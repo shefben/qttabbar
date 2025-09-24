@@ -30,15 +30,52 @@ namespace QTTabBarLib {
         }
 
         public override void InitializeConfig() {
-            btnRecentFilesClear.DataContext = btnRecentTabsClear.DataContext = new RecentButtonBinding();
+            try {
+                // Ensure WorkingConfig.misc exists
+                if (WorkingConfig != null) {
+                    if (WorkingConfig.misc == null) {
+                        WorkingConfig.misc = new Config._Misc();
+                    }
+
+                    btnRecentFilesClear.DataContext = btnRecentTabsClear.DataContext = new RecentButtonBinding();
+
+                    // Sync current TagManager values to config
+                    WorkingConfig.misc.HighlightTagged = TagManager.HighlightTagged;
+                    WorkingConfig.misc.DimUntagged = TagManager.DimUntagged;
+
+                    // Ensure DataContext is set properly
+                    DataContext = WorkingConfig.misc;
+                }
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "Options05_General.InitializeConfig");
+                // Fallback to default config if there's an error
+                if (WorkingConfig != null) {
+                    WorkingConfig.misc = new Config._Misc();
+                    DataContext = WorkingConfig.misc;
+                }
+            }
         }
 
         public override void ResetConfig() {
-            DataContext = WorkingConfig.misc = new Config._Misc();
+            try {
+                if (WorkingConfig != null) {
+                    DataContext = WorkingConfig.misc = new Config._Misc();
+                }
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "Options05_General.ResetConfig");
+            }
         }
 
         public override void CommitConfig() {
-            // Not needed; everything is done through bindings
+            // Sync tag display settings to TagManager
+            try {
+                if(WorkingConfig != null && WorkingConfig.misc != null) {
+                    TagManager.HighlightTagged = WorkingConfig.misc.HighlightTagged;
+                    TagManager.DimUntagged = WorkingConfig.misc.DimUntagged;
+                }
+            } catch { }
         }
 
         private void btnRecentFilesClear_Click(object sender, RoutedEventArgs e) {

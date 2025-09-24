@@ -395,6 +395,22 @@ namespace QTTabBarLib {
             }
         }
 
+        private void AsyncComplete_DelayedFocus(IAsyncResult ar) {
+            AsyncResult result = (AsyncResult)ar;
+            ((WaitTimeoutCallback)result.AsyncDelegate).EndInvoke(ar);
+            if(IsHandleCreated) {
+                Invoke(new FormMethodInvoker(CallbackDelayedFocus), new object[] { result.AsyncState });
+            }
+        }
+
+        private void AsyncComplete_DelayedSetFocus(IAsyncResult ar) {
+            AsyncResult result = (AsyncResult)ar;
+            ((WaitTimeoutCallback)result.AsyncDelegate).EndInvoke(ar);
+            if(IsHandleCreated) {
+                Invoke(new FormMethodInvoker(CallbackDelayedSetFocus), new object[] { result.AsyncState });
+            }
+        }
+
         // This function is used as a more available version of BeforeNavigate2.
         // Return true to suppress the navigation.  Target IDL should not be relied
         // upon; it's not guaranteed to be accurate.
@@ -427,6 +443,36 @@ namespace QTTabBarLib {
             if(fShow) {
                 PInvoke.SetRedraw(ExplorerHandle, true);
                 PInvoke.RedrawWindow(ExplorerHandle, IntPtr.Zero, IntPtr.Zero, 0x289);
+            }
+        }
+
+        private void CallbackDelayedFocus(object obj) {
+            try {
+                if(!QTUtility.IsXP || FirstNavigationCompleted) {
+                    // For Control Panel items, only restore focus if window is actually minimized/hidden
+                    if(!PInvoke.IsWindowVisible(ExplorerHandle) || PInvoke.IsIconic(ExplorerHandle)) {
+                        QTUtility2.log("QTTabBarClass CallbackDelayedFocus WindowUtils.BringExplorerToFront (delayed)");
+                        WindowUtils.BringExplorerToFront(ExplorerHandle);
+                    }
+                    else {
+                        QTUtility2.log("QTTabBarClass CallbackDelayedFocus - Window already visible, skipping focus restore");
+                    }
+                }
+            }
+            catch(Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "CallbackDelayedFocus");
+            }
+        }
+
+        private void CallbackDelayedSetFocus(object obj) {
+            try {
+                if(tabControl1.Focused && listView != null) {
+                    QTUtility2.log("QTTabBarClass CallbackDelayedSetFocus listView.SetFocus (delayed)");
+                    listView.SetFocus();
+                }
+            }
+            catch(Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "CallbackDelayedSetFocus");
             }
         }
 
@@ -3158,10 +3204,23 @@ namespace QTTabBarLib {
                             CurrentTab.TabLocked = true;
                         }
                     }
-                    if( (!QTUtility.IsXP 
-                         || FirstNavigationCompleted) && 
-                        (!PInvoke.IsWindowVisible(ExplorerHandle) 
+                    // Check if this is Control Panel or other special folder that needs delayed focus
+                    bool isControlPanel = path.Contains("::{13E7F612-F261-4391-BEA2-39DF4F3FA311}") ||
+                                           path.Contains("*?*?*") ||
+                                           IsSpecialFolderNeedsToTravel(path) ||
+                                           flag; // flag indicates special folder
+
+                    // Always delay focus for Control Panel to prevent focus stealing from dialogs
+                    if(isControlPanel && (!QTUtility.IsXP || FirstNavigationCompleted)) {
+                        // Delay focus management for Control Panel to allow it to initialize properly
+                        QTUtility2.log("QTTabBarClass Explorer_NavigateComplete2 Delaying focus for Control Panel/Special folder");
+                        new WaitTimeoutCallback(WaitTimeout).BeginInvoke(1200, AsyncComplete_DelayedFocus, null);
+                    }
+                    else if( (!QTUtility.IsXP
+                         || FirstNavigationCompleted) &&
+                        (!PInvoke.IsWindowVisible(ExplorerHandle)
                          || PInvoke.IsIconic(ExplorerHandle))) {
+
                         QTUtility2.log("QTTabBarClass Explorer_NavigateComplete2 WindowUtils.BringExplorerToFront");
                         WindowUtils.BringExplorerToFront(ExplorerHandle);
                     }
@@ -4591,6 +4650,7 @@ namespace QTTabBarLib {
             tabControl1.TabIconMouseDown += tabControl1_TabIconMouseDown;
             // 注册蓝色新增按钮的点击事件
             tabControl1.PlusButtonClicked += tabControl1_PlusButtonClicked;
+            tabControl1.OnTabDraggedToNewWindow += tabControl1_OnTabDraggedToNewWindow;
             
             contextMenuTab.Items.Add(new ToolStripMenuItem());
             contextMenuTab.ShowImageMargin = false;
@@ -4736,24 +4796,59 @@ namespace QTTabBarLib {
         private void InitializeOpenedWindow() {
             IsShown = true;
             InstanceManager.PushTabBarInstance(this);
-            //  安装钩子
-            QTUtility2.log("QTTabBarClass InitializeOpenedWindow  InstallHooks");
-            InstallHooks();
 
-            // 插件服务构造方法
+            // 安装钩子 - with retry mechanism
+            QTUtility2.log("QTTabBarClass InitializeOpenedWindow  InstallHooks");
+            try {
+                InstallHooks();
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "InitializeOpenedWindow InstallHooks failed");
+                // Retry hooks installation after a short delay
+                Timer retryTimer = new Timer { Interval = 1000 };
+                retryTimer.Tick += (sender, args) => {
+                    try {
+                        QTUtility2.log("QTTabBarClass Retrying InstallHooks");
+                        InstallHooks();
+                        retryTimer.Stop();
+                        retryTimer.Dispose();
+                    }
+                    catch (Exception retryEx) {
+                        QTUtility2.MakeErrorLog(retryEx, "InitializeOpenedWindow InstallHooks retry failed");
+                        retryTimer.Stop();
+                        retryTimer.Dispose();
+                    }
+                };
+                retryTimer.Start();
+            }
+
+            // 插件服务构造方法 - with error handling
             QTUtility2.log("QTTabBarClass  PluginServer ");
-            pluginServer = new PluginServer(this);
-            
-            // 创建工具栏
+            try {
+                pluginServer = new PluginServer(this);
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "InitializeOpenedWindow PluginServer creation failed");
+            }
+
+            // 创建工具栏 - improved retry mechanism
             QTUtility2.log("QTTabBarClass TryCallButtonBar ");
             if (!TryCallButtonBar(bbar => { return bbar.CreateItems(); }))
             {
-                // Try again in 2 seconds
-                Timer timer = new Timer { Interval = 2000 };
+                // Enhanced retry with exponential backoff
+                int retryCount = 0;
+                Timer timer = new Timer { Interval = 1000 };
                 timer.Tick += (sender, args) => {
-                    QTUtility2.log("QTTabBarClass timer.Tick TryCallButtonBar ");
-                    TryCallButtonBar(bbar => {return bbar.CreateItems();});
-                    timer.Stop();
+                    retryCount++;
+                    QTUtility2.log("QTTabBarClass timer.Tick TryCallButtonBar retry " + retryCount);
+
+                    if (TryCallButtonBar(bbar => {return bbar.CreateItems();}) || retryCount >= 5) {
+                        timer.Stop();
+                        timer.Dispose();
+                    } else {
+                        // Exponential backoff: increase interval for next retry
+                        timer.Interval = Math.Min(timer.Interval * 2, 10000);
+                    }
                 };
                 timer.Start();
             }
@@ -4881,7 +4976,13 @@ namespace QTTabBarLib {
                 tsmiGitLog.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } };
                 var tsmiGitDiff = new ToolStripMenuItem("Diff --stat HEAD");
                 tsmiGitDiff.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "diff --stat HEAD"); } catch { } };
-                tsmiGit.DropDownItems.AddRange(new ToolStripItem[]{ tsmiGitOpen, tsmiGitLog, tsmiGitDiff });
+                var tsmiGitPull = new ToolStripMenuItem("Pull");
+                tsmiGitPull.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "pull"); } catch { } };
+                var tsmiGitAdd = new ToolStripMenuItem("Add All");
+                tsmiGitAdd.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "add ."); } catch { } };
+                var tsmiGitCommit = new ToolStripMenuItem("Commit...");
+                tsmiGitCommit.Click += (s,e)=> { try { RunGitCmd(CurrentAddress, "commit"); } catch { } };
+                tsmiGit.DropDownItems.AddRange(new ToolStripItem[]{ tsmiGitOpen, tsmiGitLog, tsmiGitDiff, new ToolStripSeparator(), tsmiGitPull, tsmiGitAdd, tsmiGitCommit });
                 tsmiTools.DropDownItems.AddRange(new ToolStripItem[]{ tsmiTimeline, tsmiSnapshots, tsmiAliases, tsmiOps, tsmiTags, tsmiGit, new ToolStripSeparator(), tsmiPeek, tsmiCompare });
                 if (contextMenuSys != null)
                 {
@@ -4963,6 +5064,8 @@ namespace QTTabBarLib {
                     var explorerContextDropDown = new ContextMenuStripEx(components, false);
                     explorerContextDropDown.Opening += tsmiExplorerContext_DropDownOpening;
                     tsmiExplorerContext.DropDown = explorerContextDropDown;
+                    // ShowDropDownArrow property is not available in older .NET Framework versions
+                    // tsmiExplorerContext.ShowDropDownArrow = true;
 
                     /** add by qwop 2012-07-13.*/
                     int len = QTUtility.ResMain.Length;
@@ -5039,30 +5142,96 @@ namespace QTTabBarLib {
 
         // 安装钩子
         private void InstallHooks() {
-            hookProc_Key = new HookProc(CallbackKeyboardProc);
-            hookProc_Mouse = new HookProc(CallbackMouseProc);
-            hookProc_GetMsg = new HookProc(CallbackGetMsgProc);
-            int currentThreadId = PInvoke.GetCurrentThreadId();
-            hHook_Key = PInvoke.SetWindowsHookEx(2, hookProc_Key, IntPtr.Zero, currentThreadId);
-            hHook_Mouse = PInvoke.SetWindowsHookEx(7, hookProc_Mouse, IntPtr.Zero, currentThreadId);
-            hHook_Msg = PInvoke.SetWindowsHookEx(3, hookProc_GetMsg, IntPtr.Zero, currentThreadId);
-            explorerController = new NativeWindowController(ExplorerHandle);
-            explorerController.MessageCaptured += explorerController_MessageCaptured;
-            if(ReBarHandle != IntPtr.Zero) {
-                rebarController = new RebarController(this, ReBarHandle, BandObjectSite as IOleCommandTarget);
+            // Prevent installing hooks multiple times
+            if (hHook_Key != IntPtr.Zero || hHook_Mouse != IntPtr.Zero || hHook_Msg != IntPtr.Zero) {
+                QTUtility2.log("InstallHooks: Hooks already installed, skipping");
+                return;
             }
-            if(!QTUtility.IsXP) {
-                TravelToolBarHandle = GetTravelToolBarWindow32();
-                if(TravelToolBarHandle != IntPtr.Zero) {
-                    travelBtnController = new NativeWindowController(TravelToolBarHandle);
-                    travelBtnController.MessageCaptured += travelBtnController_MessageCaptured;
+
+            try {
+                hookProc_Key = new HookProc(CallbackKeyboardProc);
+                hookProc_Mouse = new HookProc(CallbackMouseProc);
+                hookProc_GetMsg = new HookProc(CallbackGetMsgProc);
+
+                int currentThreadId = PInvoke.GetCurrentThreadId();
+                if (currentThreadId == 0) {
+                    throw new InvalidOperationException("Could not get current thread ID");
                 }
+
+                // Install hooks with error checking
+                hHook_Key = PInvoke.SetWindowsHookEx(2, hookProc_Key, IntPtr.Zero, currentThreadId);
+                if (hHook_Key == IntPtr.Zero) {
+                    throw new InvalidOperationException("Failed to install keyboard hook");
+                }
+
+                hHook_Mouse = PInvoke.SetWindowsHookEx(7, hookProc_Mouse, IntPtr.Zero, currentThreadId);
+                if (hHook_Mouse == IntPtr.Zero) {
+                    // Clean up previous hook if mouse hook fails
+                    PInvoke.UnhookWindowsHookEx(hHook_Key);
+                    hHook_Key = IntPtr.Zero;
+                    throw new InvalidOperationException("Failed to install mouse hook");
+                }
+
+                hHook_Msg = PInvoke.SetWindowsHookEx(3, hookProc_GetMsg, IntPtr.Zero, currentThreadId);
+                if (hHook_Msg == IntPtr.Zero) {
+                    // Clean up previous hooks if message hook fails
+                    PInvoke.UnhookWindowsHookEx(hHook_Key);
+                    PInvoke.UnhookWindowsHookEx(hHook_Mouse);
+                    hHook_Key = IntPtr.Zero;
+                    hHook_Mouse = IntPtr.Zero;
+                    throw new InvalidOperationException("Failed to install message hook");
+                }
+
+                // Initialize controllers with error handling
+                if (ExplorerHandle != IntPtr.Zero) {
+                    try {
+                        explorerController = new NativeWindowController(ExplorerHandle);
+                        explorerController.MessageCaptured += explorerController_MessageCaptured;
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "InstallHooks: Failed to create explorer controller");
+                    }
+                }
+
+                if(ReBarHandle != IntPtr.Zero) {
+                    try {
+                        rebarController = new RebarController(this, ReBarHandle, BandObjectSite as IOleCommandTarget);
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "InstallHooks: Failed to create rebar controller");
+                    }
+                }
+
+                if(!QTUtility.IsXP) {
+                    try {
+                        TravelToolBarHandle = GetTravelToolBarWindow32();
+                        if(TravelToolBarHandle != IntPtr.Zero) {
+                            travelBtnController = new NativeWindowController(TravelToolBarHandle);
+                            travelBtnController.MessageCaptured += travelBtnController_MessageCaptured;
+                        }
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "InstallHooks: Failed to create travel button controller");
+                    }
+                }
+
+                try {
+                    dropTargetWrapper = new DropTargetWrapper(this);
+                    dropTargetWrapper.DragFileEnter += dropTargetWrapper_DragFileEnter;
+                    dropTargetWrapper.DragFileOver += dropTargetWrapper_DragFileOver;
+                    dropTargetWrapper.DragFileLeave += dropTargetWrapper_DragFileLeave;
+                    dropTargetWrapper.DragFileDrop += dropTargetWrapper_DragFileDrop;
+                }
+                catch (Exception ex) {
+                    QTUtility2.MakeErrorLog(ex, "InstallHooks: Failed to create drop target wrapper");
+                }
+
+                QTUtility2.log("InstallHooks: Successfully installed all hooks");
             }
-            dropTargetWrapper = new DropTargetWrapper(this);
-            dropTargetWrapper.DragFileEnter += dropTargetWrapper_DragFileEnter;
-            dropTargetWrapper.DragFileOver += dropTargetWrapper_DragFileOver;
-            dropTargetWrapper.DragFileLeave += dropTargetWrapper_DragFileLeave;
-            dropTargetWrapper.DragFileDrop += dropTargetWrapper_DragFileDrop;
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "InstallHooks: Critical failure during hook installation");
+                throw; // Re-throw to trigger retry mechanism
+            }
         }
 
 
@@ -5560,13 +5729,58 @@ namespace QTTabBarLib {
         private void menuitemAddToGroup_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e) {
             // TODO we should be using tags I think
             string groupName = e.ClickedItem.Text;
-            string currentPath = ContextMenuedTab.CurrentPath;
+            QTabItem contextTab = ContextMenuedTab;
+            if(contextTab == null) return;
+
+            string currentPath = contextTab.CurrentPath;
             bool addSame = ModifierKeys == Keys.Control;
             Group g = GroupsManager.GetGroup(groupName);
             if(g == null) return;
+
+            // Add path to group if not already present
             if(addSame || !g.Paths.Any(p => p.PathEquals(currentPath))) {
                 g.Paths.Add(currentPath);
                 GroupsManager.SaveGroups();
+            }
+
+            // Check if this group has any tabs currently loaded
+            bool groupHasLoadedTabs = tabControl1.TabPages.Any(tab => tab.GroupKey == groupName);
+
+            if(!groupHasLoadedTabs && g.Paths.Count > 1) {
+                // Group exists but has no loaded tabs - load the group first, then add current tab
+                List<QTabItem> groupTabs = new List<QTabItem>();
+
+                // Load other paths from the group (except the current one)
+                foreach(string path in g.Paths) {
+                    if(!path.PathEquals(currentPath)) {
+                        QTabItem newTab = null;
+                        try {
+                            using(IDLWrapper wrapper = new IDLWrapper(path)) {
+                                if(wrapper.Available) {
+                                    newTab = CreateNewTab(wrapper);
+                                    if(newTab != null) {
+                                        groupTabs.Add(newTab);
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // Add the current tab to the group
+                groupTabs.Add(contextTab);
+
+                // Assign all tabs to the group (this creates the visual island)
+                tabControl1.AssignGroupTabs(groupName, groupTabs);
+            }
+            else {
+                // Group already has loaded tabs, or this is the only tab - just add current tab to group
+                List<QTabItem> existingTabs = tabControl1.TabPages.Where(tab => tab.GroupKey == groupName).ToList();
+                if(!existingTabs.Contains(contextTab)) {
+                    existingTabs.Add(contextTab);
+                }
+                tabControl1.AssignGroupTabs(groupName, existingTabs);
             }
         }
 
@@ -6321,7 +6535,10 @@ namespace QTTabBarLib {
             Keys modKeys = ModifierKeys;
             if((modKeys & Keys.Control) == 0) {
                 OpenNewTab(idlw, (modKeys & Keys.Shift) == Keys.Shift);
-                WindowUtils.BringExplorerToFront(ExplorerHandle);
+                // Don't immediately bring Explorer to front for Control Panel items
+                if(!IsSpecialFolderNeedsToTravel(idlw.Path)) {
+                    WindowUtils.BringExplorerToFront(ExplorerHandle);
+                }
                 if(fNeedsPulse) {
                     fNeedsNewWindowPulse = true;
                 }
@@ -7398,7 +7615,11 @@ namespace QTTabBarLib {
                         var miRoot = new ToolStripMenuItem("Git: Open Repo Root"); miRoot.Click += (s,ev)=> { try { OpenNewTab(root); } catch { } };
                         var miLog = new ToolStripMenuItem("Git: Log (last 50)"); miLog.Click += (s,ev)=> { try { RunGitCmd(path, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } };
                         var miDiff = new ToolStripMenuItem("Git: Diff --stat HEAD"); miDiff.Click += (s,ev)=> { try { RunGitCmd(path, "diff --stat HEAD"); } catch { } };
+                        var miPull = new ToolStripMenuItem("Git: Pull"); miPull.Click += (s,ev)=> { try { RunGitCmd(path, "pull"); } catch { } };
+                        var miAdd = new ToolStripMenuItem("Git: Add All"); miAdd.Click += (s,ev)=> { try { RunGitCmd(path, "add ."); } catch { } };
+                        var miCommit = new ToolStripMenuItem("Git: Commit..."); miCommit.Click += (s,ev)=> { try { RunGitCmd(path, "commit"); } catch { } };
                         menu.Items.Add(miRoot); menu.Items.Add(miLog); menu.Items.Add(miDiff);
+                        menu.Items.Add(new ToolStripSeparator()); menu.Items.Add(miPull); menu.Items.Add(miAdd); menu.Items.Add(miCommit);
                         menu.Show(MousePosition);
                         return;
                     }
@@ -8152,7 +8373,15 @@ namespace QTTabBarLib {
                 }
                 if (tabControl1.Focused)
                 {
-                    listView.SetFocus();
+                    // Check if current tab is Control Panel or special folder
+                    if(IsSpecialFolderNeedsToTravel(currentPath)) {
+                        // Delay SetFocus for Control Panel to prevent interruption
+                        QTUtility2.log("tabControl1_SelectedIndexChanged Delaying SetFocus for special folder");
+                        new WaitTimeoutCallback(WaitTimeout).BeginInvoke(1000, AsyncComplete_DelayedSetFocus, null);
+                    }
+                    else {
+                        listView.SetFocus();
+                    }
                 }
             }
             else
@@ -8202,7 +8431,15 @@ namespace QTTabBarLib {
                 }
                 if (tabControl1.Focused)
                 {
-                    listView.SetFocus();
+                    // Check if current tab is Control Panel or special folder
+                    if(IsSpecialFolderNeedsToTravel(CurrentTab.CurrentPath)) {
+                        // Delay SetFocus for Control Panel to prevent interruption
+                        QTUtility2.log("tabControl1_SelectedIndexChanged Delaying SetFocus for special folder (second check)");
+                        new WaitTimeoutCallback(WaitTimeout).BeginInvoke(1000, AsyncComplete_DelayedSetFocus, null);
+                    }
+                    else {
+                        listView.SetFocus();
+                    }
                 }
                 if (pluginServer != null)
                 {
@@ -8280,6 +8517,9 @@ namespace QTTabBarLib {
 
         internal void GitLog() { try { RunGitCmd(CurrentAddress, "--no-pager log --oneline --decorate --graph -n 50"); } catch { } }
         internal void GitDiff() { try { RunGitCmd(CurrentAddress, "diff --stat HEAD"); } catch { } }
+        internal void GitPull() { try { RunGitCmd(CurrentAddress, "pull"); } catch { } }
+        internal void GitAdd() { try { RunGitCmd(CurrentAddress, "add ."); } catch { } }
+        internal void GitCommit() { try { RunGitCmd(CurrentAddress, "commit"); } catch { } }
 
         private static string GitRepoRootOf(string path) {
             try { return typeof(GitStatusManager).GetMethod("FindGitRoot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, new object[]{ path }) as string; } catch { return null; }
@@ -8289,6 +8529,22 @@ namespace QTTabBarLib {
         private static void RunGitCmd(string path, string args) {
             try {
                 string root = GitRepoRootOf(path) ?? path;
+
+                // Check if we should use TortoiseGit and it's available
+                if (Config.Misc.UseTortoiseGit && IsTortoiseGitAvailable()) {
+                    string tortoiseGitCmd = ConvertToTortoiseGitCommand(args);
+                    if (!string.IsNullOrEmpty(tortoiseGitCmd)) {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                            FileName = "TortoiseGitProc.exe",
+                            Arguments = tortoiseGitCmd,
+                            WorkingDirectory = root,
+                            UseShellExecute = true
+                        });
+                        return;
+                    }
+                }
+
+                // Fallback to command line git
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                     FileName = "cmd.exe",
                     Arguments = "/k git " + args,
@@ -8296,6 +8552,45 @@ namespace QTTabBarLib {
                     UseShellExecute = true
                 });
             } catch { }
+        }
+
+        private static bool IsTortoiseGitAvailable() {
+            try {
+                // Check if TortoiseGitProc.exe exists in PATH or common locations
+                System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo {
+                    FileName = "TortoiseGitProc.exe",
+                    Arguments = "/command:about",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var process = System.Diagnostics.Process.Start(psi)) {
+                    if (process != null) {
+                        process.WaitForExit(1000);
+                        return process.ExitCode == 0;
+                    }
+                }
+            } catch { }
+            return false;
+        }
+
+        private static string ConvertToTortoiseGitCommand(string gitArgs) {
+            // Convert git commands to TortoiseGit commands
+            if (gitArgs.Contains("log")) {
+                return "/command:log /path:.";
+            }
+            if (gitArgs.Contains("diff")) {
+                return "/command:diff /path:.";
+            }
+            if (gitArgs.Contains("pull")) {
+                return "/command:pull /path:.";
+            }
+            if (gitArgs.Contains("add .")) {
+                return "/command:add /path:.";
+            }
+            if (gitArgs.Contains("commit")) {
+                return "/command:commit /path:.";
+            }
+            return null; // Unsupported command, will fallback to command line
         }
 
         private void SyncToolbarTravelButton()
@@ -8321,7 +8616,18 @@ namespace QTTabBarLib {
             }
             if (!IsSearchResultFolder(path))
             {
+                // Control Panel main folder
                 if (path.PathEquals("::{13E7F612-F261-4391-BEA2-39DF4F3FA311}"))
+                {
+                    return true;
+                }
+                // Programs and Features (Add/Remove Programs)
+                if (path.PathEquals("::{7b81be6a-ce2b-4676-a29e-eb907a5126c5}"))
+                {
+                    return true;
+                }
+                // Other Control Panel items that may need special handling
+                if (path.Contains("::{") && path.Contains("}"))
                 {
                     return true;
                 }
@@ -8502,6 +8808,17 @@ System.NullReferenceException: 未将对象引用设置到对象的实例。
                     QTUtility2.log("tabControl1_PlusButtonClicked 我的电脑 ");
                     OpenNewTab(w, false, true);
                 }
+            }
+        }
+
+        private void tabControl1_OnTabDraggedToNewWindow(IDLWrapper wrapper) {
+            try {
+                // Use the existing OpenNewWindow method to create a new Explorer window
+                OpenNewWindow(wrapper);
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "tabControl1_OnTabDraggedToNewWindow");
+                QTUtility.SoundPlay(); // Play error sound as feedback
             }
         }
 

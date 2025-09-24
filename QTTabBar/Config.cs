@@ -755,6 +755,9 @@ namespace QTTabBarLib {
             public bool AutoUpdate               { get; set; }
             public bool SoundBox { get; set; }
             public bool EnableLog { get; set; }
+            public bool UseTortoiseGit { get; set; }
+            public bool HighlightTagged { get; set; }
+            public bool DimUntagged { get; set; }
 
             public _Misc() {
                 TaskbarThumbnails = false;
@@ -766,8 +769,14 @@ namespace QTTabBarLib {
                 AutoUpdate = true;
                 // 默认关闭声音播放
                 SoundBox = false;
-                // 默认不启用日志功能 
+                // 默认不启用日志功能
                 EnableLog = false;
+                // 默认使用命令行 git
+                UseTortoiseGit = false;
+                // 默认启用标签高亮
+                HighlightTagged = true;
+                // 默认不暗化未标记项
+                DimUntagged = false;
             }
         }
 

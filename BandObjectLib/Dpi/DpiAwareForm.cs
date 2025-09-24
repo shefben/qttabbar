@@ -89,13 +89,19 @@ namespace QTTabBarLib
 
     protected override unsafe void WndProc(ref Message m)
     {
-      switch (m.Msg)
+      try
       {
-        case 131:
-          if (m.WParam != IntPtr.Zero && !DpiManager.PerMonitorDpiIsSupported)
-          {
-            NCCALCSIZE_PARAMS* lparam = (NCCALCSIZE_PARAMS*) (void*) m.LParam;
-            base.WndProc(ref m);
+        switch (m.Msg)
+        {
+          case 131:
+            if (m.WParam != IntPtr.Zero && !DpiManager.PerMonitorDpiIsSupported)
+            {
+              if(m.LParam == IntPtr.Zero) {
+                base.WndProc(ref m);
+                return;
+              }
+              NCCALCSIZE_PARAMS* lparam = (NCCALCSIZE_PARAMS*) (void*) m.LParam;
+              base.WndProc(ref m);
             if (DpiManager.DefaultDpi <= 96 || DpiManager.DefaultDpi <= this.Dpi || this.FormBorderStyle == FormBorderStyle.None)
               return;
             int systemMetrics;
@@ -140,6 +146,15 @@ namespace QTTabBarLib
           }
       }
       base.WndProc(ref m);
+      }
+      catch (Exception ex)
+      {
+        // Log the exception but don't let it crash Explorer
+        System.Diagnostics.Debug.WriteLine("DpiAwareForm.WndProc exception: " + ex.Message);
+        try {
+          base.WndProc(ref m);
+        } catch { }
+      }
     }
 
     private void PreprocessOnDpiChange(

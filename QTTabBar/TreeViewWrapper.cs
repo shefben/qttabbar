@@ -223,7 +223,15 @@ namespace QTTabBarLib {
         internal void RefreshTagColors() {
             tagColorCache.Clear();
             if(treeController != null && treeController.Handle != IntPtr.Zero) {
+                // Force immediate invalidation and redraw
                 PInvoke.InvalidateRect(treeController.Handle, IntPtr.Zero, true);
+                PInvoke.UpdateWindow(treeController.Handle);
+
+                // Also try to force a complete redraw of the tree view
+                try {
+                    PInvoke.SendMessage(treeController.Handle, WM.PAINT, IntPtr.Zero, IntPtr.Zero);
+                }
+                catch { }
             }
         }
 
@@ -258,7 +266,15 @@ namespace QTTabBarLib {
                     tagColorCache.Clear();
                 }
                 if(treeController != null && treeController.Handle != IntPtr.Zero) {
+                    // Force immediate invalidation and redraw
                     PInvoke.InvalidateRect(treeController.Handle, IntPtr.Zero, true);
+                    PInvoke.UpdateWindow(treeController.Handle);
+
+                    // Also try to force a complete redraw of the tree view
+                    try {
+                        PInvoke.SendMessage(treeController.Handle, WM.PAINT, IntPtr.Zero, IntPtr.Zero);
+                    }
+                    catch { }
                 }
             }
         }

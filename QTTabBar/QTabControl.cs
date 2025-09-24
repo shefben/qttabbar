@@ -38,6 +38,8 @@ namespace QTTabBarLib {
         private Color[] colorSet;
         private IContainer components;
         private QTabItem draggingTab;
+        private Form dragPreviewForm;
+        private bool showDragPreview;
         private bool fActiveTxtBold;
         private bool fAutoSubText;
         private bool fCloseBtnOnHover;
@@ -101,6 +103,7 @@ namespace QTTabBarLib {
         private bool groupingDragActive;
         private Point groupingDragOrigin;
         private TabGroupState groupDropTarget;
+        private TabGroupState draggingGroup;
         private readonly EventHandler<TagVisualChangedEventArgs> tagVisualHandler;
 
         [ThreadStatic()]
@@ -132,6 +135,9 @@ namespace QTTabBarLib {
         public event QTabCancelEventHandler TabIconMouseDown;
         // ɫť¼
         public event QTabCancelEventHandler PlusButtonClicked;
+
+        // New window creation event
+        public event Action<IDLWrapper> OnTabDraggedToNewWindow;
 
         public QTabControl() {
             fNeedPlusButton = Config.Tabs.NeedPlusButton;
@@ -1544,13 +1550,14 @@ namespace QTTabBarLib {
                 UpdateGroupDropTarget(null);
                 groupingDragActive = false;
             }
+            draggingGroup = null;
             PInvoke.InvalidateRect(Handle, IntPtr.Zero, true);
             base.OnMouseLeave(e);
         }
 
         protected override void OnMouseMove(MouseEventArgs e) {
             int num;
-            if((e.Button & MouseButtons.Left) == MouseButtons.Left && draggingTab != null) {
+            if((e.Button & MouseButtons.Left) == MouseButtons.Left && (draggingTab != null || draggingGroup != null)) {
                 if(!groupingDragActive) {
                     Rectangle dragRect = new Rectangle(
                         groupingDragOrigin.X - SystemInformation.DragSize.Width / 2,
@@ -1559,10 +1566,25 @@ namespace QTTabBarLib {
                         SystemInformation.DragSize.Height);
                     if(!dragRect.Contains(e.Location)) {
                         groupingDragActive = true;
+                        // Always create drag preview for tab dragging (both normal and group operations)
+                        if(draggingTab != null) {
+                            CreateDragPreview(draggingTab);
+                        }
+                        else if(draggingGroup != null) {
+                            CreateGroupDragPreview(draggingGroup);
+                        }
                     }
                 }
                 if(groupingDragActive) {
-                    UpdateGroupDropTarget(HitTestGroupSurface(e.Location));
+                    if(draggingGroup != null) {
+                        // For group dragging, highlight valid drop zones
+                        UpdateGroupDropTarget(GetGroupDropTarget(e.Location));
+                    }
+                    else {
+                        UpdateGroupDropTarget(HitTestGroupSurface(e.Location));
+                    }
+                    // Always update drag preview position when dragging (for both tab and group operations)
+                    UpdateDragPreview(PointToScreen(e.Location));
                 }
             }
             else if(groupingDragActive) {
@@ -1612,11 +1634,14 @@ namespace QTTabBarLib {
 
         protected override void OnMouseUp(MouseEventArgs e) {
             QTabItem droppedTab = draggingTab;
+            TabGroupState droppedGroup = draggingGroup;
             bool wasGroupingDrag = groupingDragActive;
             TabGroupState dropTarget = groupDropTarget;
             draggingTab = null;
+            draggingGroup = null;
             groupingDragActive = false;
             UpdateGroupDropTarget(null);
+            DisposeDragPreview();
             if(fSuppressMouseUp) {
                 fSuppressMouseUp = false;
                 base.OnMouseUp(e);
@@ -1624,8 +1649,24 @@ namespace QTTabBarLib {
             else {
                 int num;
                 QTabItem tabMouseOn = GetTabMouseOn(out num);
-                if(e.Button == MouseButtons.Left && wasGroupingDrag && droppedTab != null) {
-                    HandleGroupDrop(droppedTab, dropTarget);
+                if(e.Button == MouseButtons.Left && wasGroupingDrag) {
+                    if(droppedTab != null) {
+                        HandleGroupDrop(droppedTab, dropTarget);
+                    }
+                    else if(droppedGroup != null) {
+                        // Check if mouse is outside control bounds using screen coordinates
+                        Point screenPos = PointToScreen(e.Location);
+                        Rectangle screenBounds = RectangleToScreen(ClientRectangle);
+                        if (!screenBounds.Contains(screenPos)) {
+                            HandleGroupToNewWindow(droppedGroup);
+                        } else {
+                            HandleGroupReorder(droppedGroup, e.Location);
+                        }
+                    }
+                }
+                else if(e.Button == MouseButtons.Left && droppedGroup != null && !wasGroupingDrag) {
+                    // This was a click without drag - toggle the group
+                    ToggleGroup(droppedGroup.Name);
                 }
                 if(((fDrawCloseButton && (e.Button != MouseButtons.Right)) && ((CloseButtonClicked != null) && (tabMouseOn != null))) && (!tabMouseOn.TabLocked && fMouseDownOnCloseBtn && HitTestOnButtons(tabMouseOn.TabBounds, e.Location, true, num == iSelectedIndex))) {
                     if(e.Button == MouseButtons.Left) {
@@ -1696,7 +1737,15 @@ namespace QTTabBarLib {
 
                     if (fNeedPlusButton)
                     {
-                        Rectangle plusRect = GetItemRectangle(tabPages.Count - 1);
+                        // Find the last visible tab for positioning the plus button
+                        Rectangle plusRect = Rectangle.Empty;
+                        for(int i = tabPages.Count - 1; i >= 0; i--) {
+                            Rectangle tabRect = GetItemRectangle(i);
+                            if(!tabRect.IsEmpty && !tabPages[i].CollapsedByGroup) {
+                                plusRect = tabRect;
+                                break;
+                            }
+                        }
                         if(!plusRect.IsEmpty) {
                             DrawPlusButton(e.Graphics, plusRect);
                         }
@@ -1779,12 +1828,17 @@ namespace QTTabBarLib {
 
                     if (fNeedPlusButton)
                     {
-                        if (tabPages.Count > 0)
-                        {
-                            Rectangle plusButtonRect = tabPages[tabPages.Count - 1].TabBounds;
-                            if(!plusButtonRect.IsEmpty) {
-                                DrawPlusButton(e.Graphics,plusButtonRect);
+                        // Find the last visible tab for positioning the plus button
+                        Rectangle plusButtonRect = Rectangle.Empty;
+                        for(int k = tabPages.Count - 1; k >= 0; k--) {
+                            QTabItem tab = tabPages[k];
+                            if(!tab.CollapsedByGroup && !tab.TabBounds.IsEmpty) {
+                                plusButtonRect = tab.TabBounds;
+                                break;
                             }
+                        }
+                        if(!plusButtonRect.IsEmpty) {
+                            DrawPlusButton(e.Graphics,plusButtonRect);
                         }
                     }
                 }
@@ -2375,9 +2429,18 @@ namespace QTTabBarLib {
                 tabs = new QTabItem[0];
             }
             IList<QTabItem> tabList = tabs as IList<QTabItem> ?? new List<QTabItem>(tabs);
+
+            // Check if this assignment would split existing islands
+            if (WouldSplitExistingIslands(tabList)) {
+                // Don't allow the assignment - could optionally show a message here
+                QTUtility.SoundPlay(); // Play error sound to indicate invalid operation
+                return;
+            }
+
             TabGroupState state;
-            if(!groupStates.TryGetValue(groupName, out state)) {
-                state = new TabGroupState { Name = groupName };
+            bool isNewGroup = !groupStates.TryGetValue(groupName, out state);
+            if(isNewGroup) {
+                state = new TabGroupState { Name = groupName, IsCollapsed = false }; // Ensure new groups are visible
                 groupStates[groupName] = state;
             }
             foreach(var other in groupStates.Values) {
@@ -2409,7 +2472,11 @@ namespace QTTabBarLib {
             CleanupEmptyGroups();
             SyncGroupOrder();
             EnsureSelectionForCollapsedGroups();
+
+            // Force immediate visual update for new/updated groups
+            UpdateGroupIslandGeometry();
             Invalidate();
+            Update(); // Ensure immediate repaint
         }
 
         private void RemoveTabFromGroups(QTabItem tab) {
@@ -2452,7 +2519,19 @@ namespace QTTabBarLib {
                 if(state == null) {
                     continue;
                 }
-                state.Tabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+
+                // Remove invalid tabs but maintain group membership for valid ones
+                List<QTabItem> validTabs = new List<QTabItem>();
+                foreach(QTabItem tab in state.Tabs) {
+                    if(tab != null && tabPages.Contains(tab)) {
+                        // Ensure the tab maintains its group assignment
+                        tab.GroupKey = state.Name;
+                        validTabs.Add(tab);
+                    }
+                }
+
+                state.Tabs.Clear();
+                state.Tabs.AddRange(validTabs);
                 state.Tabs.Sort((a, b) => tabPages.IndexOf(a).CompareTo(tabPages.IndexOf(b)));
                 ApplyGroupCollapseState(state);
                 UpdateGroupAccent(state);
@@ -2510,6 +2589,13 @@ namespace QTTabBarLib {
         private static Color GetGroupAccentColor(TabGroupState state) {
             if(state != null && !state.AccentColor.IsEmpty) {
                 return state.AccentColor;
+            }
+            // Check if the group has a custom island color set
+            if(state != null && !string.IsNullOrEmpty(state.Name)) {
+                Group group = GroupsManager.GetGroup(state.Name);
+                if(group != null && group.IslandColor.HasValue) {
+                    return group.IslandColor.Value;
+                }
             }
             string name = state != null ? state.Name : null;
             return ResolveGroupAccent(name);
@@ -2612,7 +2698,10 @@ namespace QTTabBarLib {
             ApplyGroupCollapseState(state);
             EnsureSelectionForCollapsedGroups();
             UpdateGroupDropTarget(null);
+            // Force layout recalculation after collapse/expand
+            UpdateGroupIslandGeometry();
             Invalidate();
+            Update();
         }
 
         private void UpdateGroupIndicators() {
@@ -2697,6 +2786,15 @@ namespace QTTabBarLib {
                     using(Pen pen = new Pen(borderColor, 1f)) {
                         g.FillRectangle(brush, background);
                         g.DrawRectangle(pen, background);
+
+                        // Ensure all edges are properly visible
+                        using(Pen thickPen = new Pen(borderColor, 1.5f)) {
+                            // Draw all four edges to ensure visibility
+                            g.DrawLine(thickPen, background.Left, background.Top, background.Right, background.Top); // Top
+                            g.DrawLine(thickPen, background.Left, background.Bottom - 1, background.Right, background.Bottom - 1); // Bottom
+                            g.DrawLine(thickPen, background.Left, background.Top, background.Left, background.Bottom); // Left
+                            g.DrawLine(thickPen, background.Right - 1, background.Top, background.Right - 1, background.Bottom); // Right
+                        }
                     }
                 }
                 if(rail.Width <= 0 || rail.Height <= 0) {
@@ -2767,17 +2865,20 @@ namespace QTTabBarLib {
                     state.IndicatorBounds = state.RailBounds;
                     continue;
                 }
-                int islandLeft = Math.Min(anchor.Left, union.Left) - GROUP_ISLAND_PADDING;
-                int islandRight = union.Right + GROUP_ISLAND_PADDING;
-                int islandTop = union.Top + 1;
-                int islandBottom = union.Bottom - 1;
-                state.IslandBounds = new Rectangle(islandLeft, islandTop, Math.Max(islandRight - islandLeft, 4), Math.Max(islandBottom - islandTop, 4));
+                // Calculate rail position first to ensure proper alignment
                 int railXBase = anchor.Width > 0
                         ? anchor.Left + Math.Max((anchor.Width - GROUP_RAIL_WIDTH) / 2, 0)
                         : union.Left - GROUP_RAIL_WIDTH - 4;
                 railXBase = Math.Min(railXBase, union.Left - 2);
                 int railHeight = Math.Max(union.Height - 4, 4);
                 state.RailBounds = new Rectangle(railXBase, union.Top + 2, GROUP_RAIL_WIDTH, railHeight);
+
+                // Calculate island bounds to align with rail top and bottom
+                int islandLeft = Math.Max(railXBase + GROUP_RAIL_WIDTH, union.Left - GROUP_ISLAND_PADDING);
+                int islandRight = union.Right + GROUP_ISLAND_PADDING;
+                int islandTop = state.RailBounds.Top; // Align with rail top
+                int islandBottom = state.RailBounds.Bottom; // Align with rail bottom
+                state.IslandBounds = new Rectangle(islandLeft, islandTop, Math.Max(islandRight - islandLeft, 4), Math.Max(islandBottom - islandTop, 4));
                 state.IndicatorBounds = state.RailBounds;
             }
         }
@@ -2828,20 +2929,239 @@ namespace QTTabBarLib {
             List<QTabItem> members = state.Tabs.Where(t => t != null && tabPages.Contains(t)).ToList();
             if(!members.Contains(tab)) {
                 members.Add(tab);
+
+                // Check if adding this tab would split existing islands
+                if (WouldSplitExistingIslands(members)) {
+                    // Don't allow adding the tab - play error sound for feedback
+                    QTUtility.SoundPlay();
+                    return;
+                }
+
                 AssignGroupTabs(state.Name, members);
             }
+            // Ensure the group is visible when adding tabs
             if(state.IsCollapsed) {
                 state.IsCollapsed = false;
                 ApplyGroupCollapseState(state);
             }
             EnsureSelectionForCollapsedGroups();
+
+            // Force immediate visual update
+            UpdateGroupIslandGeometry();
             Invalidate();
+            Update(); // Ensure immediate repaint
+        }
+
+        // Check if assigning tabs to a group would split existing islands
+        private bool WouldSplitExistingIslands(IList<QTabItem> newGroupTabs) {
+            if (newGroupTabs == null || newGroupTabs.Count == 0) {
+                return false;
+            }
+
+            // Get indices of the tabs that would form the new group
+            List<int> newGroupIndices = new List<int>();
+            foreach (QTabItem tab in newGroupTabs) {
+                if (tab != null && tabPages.Contains(tab)) {
+                    int index = tabPages.IndexOf(tab);
+                    if (index >= 0) {
+                        newGroupIndices.Add(index);
+                    }
+                }
+            }
+
+            if (newGroupIndices.Count == 0) {
+                return false;
+            }
+
+            newGroupIndices.Sort();
+
+            // Check if the new group would split any existing islands
+            foreach (var existingState in groupStates.Values) {
+                if (existingState == null || existingState.Tabs == null || existingState.Tabs.Count <= 1) {
+                    continue;
+                }
+
+                // Get indices of existing group tabs
+                List<int> existingIndices = new List<int>();
+                foreach (QTabItem existingTab in existingState.Tabs) {
+                    if (existingTab != null && tabPages.Contains(existingTab) && !newGroupTabs.Contains(existingTab)) {
+                        int index = tabPages.IndexOf(existingTab);
+                        if (index >= 0) {
+                            existingIndices.Add(index);
+                        }
+                    }
+                }
+
+                if (existingIndices.Count <= 1) {
+                    continue; // Can't split a group with 1 or fewer remaining tabs
+                }
+
+                existingIndices.Sort();
+
+                // Check if new group indices would split the existing group
+                if (WouldIndicesSplitGroup(existingIndices, newGroupIndices)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool WouldIndicesSplitGroup(List<int> existingGroupIndices, List<int> newGroupIndices) {
+            if (existingGroupIndices.Count <= 1 || newGroupIndices.Count == 0) {
+                return false;
+            }
+
+            // Check if any new group tabs would be inserted between existing group tabs
+            int minExisting = existingGroupIndices.Min();
+            int maxExisting = existingGroupIndices.Max();
+
+            foreach (int newIndex in newGroupIndices) {
+                if (newIndex > minExisting && newIndex < maxExisting) {
+                    // Check if this new tab would actually split the existing group
+                    // by being between two existing group tabs
+                    for (int i = 0; i < existingGroupIndices.Count - 1; i++) {
+                        if (newIndex > existingGroupIndices[i] && newIndex < existingGroupIndices[i + 1]) {
+                            return true; // New tab would split existing group
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // Check if moving a tab would split an island group
+        internal bool WouldSplitIslandGroup(int sourceIndex, int destIndex) {
+            if (sourceIndex == destIndex || sourceIndex < 0 || destIndex < 0) {
+                return false;
+            }
+            if (sourceIndex >= tabPages.Count || destIndex >= tabPages.Count) {
+                return false;
+            }
+
+            QTabItem sourceTab = tabPages[sourceIndex];
+            if (sourceTab == null) {
+                return false;
+            }
+
+            // If source tab has no group, it can move anywhere without splitting groups
+            string sourceGroupKey = sourceTab.GroupKey;
+            if (string.IsNullOrEmpty(sourceGroupKey)) {
+                // Check if inserting between island group members would split the group
+                return WouldInsertBetweenIslandMembers(destIndex);
+            }
+
+            // If source tab is part of a group, check if moving it would split the group
+            return WouldMoveBreakIslandContinuity(sourceIndex, destIndex, sourceGroupKey);
+        }
+
+        private bool WouldInsertBetweenIslandMembers(int destIndex) {
+            // Allow inserting at position 0 (before everything)
+            if (destIndex == 0) {
+                return false;
+            }
+
+            // Allow inserting at the end
+            if (destIndex >= tabPages.Count) {
+                return false;
+            }
+
+            QTabItem leftTab = destIndex > 0 ? tabPages[destIndex - 1] : null;
+            QTabItem rightTab = destIndex < tabPages.Count ? tabPages[destIndex] : null;
+
+            // Need both adjacent tabs to check for splitting
+            if (leftTab == null || rightTab == null) {
+                return false;
+            }
+
+            // Check if we're inserting between two tabs of the same island group
+            string leftGroup = leftTab.GroupKey;
+            string rightGroup = rightTab.GroupKey;
+
+            if (string.IsNullOrEmpty(leftGroup) || string.IsNullOrEmpty(rightGroup)) {
+                return false;
+            }
+
+            // If both tabs belong to the same non-empty group, inserting between them would split the group
+            return leftGroup == rightGroup;
+        }
+
+        private bool WouldMoveBreakIslandContinuity(int sourceIndex, int destIndex, string groupKey) {
+            // Get all tabs in the same group
+            var groupTabs = new List<int>();
+            for (int i = 0; i < tabPages.Count; i++) {
+                if (tabPages[i] != null && tabPages[i].GroupKey == groupKey) {
+                    groupTabs.Add(i);
+                }
+            }
+
+            if (groupTabs.Count <= 1) {
+                return false; // Single tab or no group can't be split
+            }
+
+            // Check if the group is currently contiguous
+            groupTabs.Sort();
+            bool isContiguous = true;
+            for (int i = 1; i < groupTabs.Count; i++) {
+                if (groupTabs[i] != groupTabs[i - 1] + 1) {
+                    isContiguous = false;
+                    break;
+                }
+            }
+
+            if (!isContiguous) {
+                return false; // Group is already split, allow movement
+            }
+
+            // Simulate the move and check if group remains contiguous
+            var newPositions = new List<int>(groupTabs);
+            newPositions.Remove(sourceIndex);
+
+            // Adjust destination index after removal
+            int adjustedDestIndex = destIndex;
+            if (sourceIndex < destIndex) {
+                adjustedDestIndex--;
+            }
+
+            // Insert at new position
+            if (adjustedDestIndex >= newPositions.Count) {
+                newPositions.Add(adjustedDestIndex);
+            } else {
+                newPositions.Insert(FindInsertionPoint(newPositions, adjustedDestIndex), adjustedDestIndex);
+            }
+
+            // Check if new positions are contiguous
+            newPositions.Sort();
+            for (int i = 1; i < newPositions.Count; i++) {
+                if (newPositions[i] != newPositions[i - 1] + 1) {
+                    return true; // Would break continuity
+                }
+            }
+
+            return false; // Would not break continuity
+        }
+
+        private int FindInsertionPoint(List<int> sortedList, int value) {
+            for (int i = 0; i < sortedList.Count; i++) {
+                if (sortedList[i] > value) {
+                    return i;
+                }
+            }
+            return sortedList.Count;
         }
 
         private void HandleGroupDrop(QTabItem tab, TabGroupState target) {
             if(tab == null) {
                 return;
             }
+
+            // If no target specified, check if we're dropping onto an island surface
+            if(target == null) {
+                Point mousePos = PointToClient(MousePosition);
+                target = HitTestGroupSurface(mousePos);
+            }
+
             if(target != null) {
                 AddTabToGroup(target, tab);
             }
@@ -2852,24 +3172,360 @@ namespace QTTabBarLib {
                 EnsureSelectionForCollapsedGroups();
                 Invalidate();
             }
+            else {
+                // Handle regular tab reordering (non-group drops)
+                Point mousePos = PointToClient(MousePosition);
+                int dropIndex = GetDropIndex(mousePos);
+                int currentIndex = tabPages.IndexOf(tab);
+
+                // Check for invalid drop location (outside tab bar area)
+                if (dropIndex == -1) {
+                    // Dropped outside tab bar area - open in new window
+                    try {
+                        // Create new window with the tab's current location
+                        if (tab.CurrentIDL != null && tab.CurrentIDL.Length > 0) {
+                            using (IDLWrapper wrapper = new IDLWrapper(tab.CurrentIDL)) {
+                                if (wrapper.Available) {
+                                    // Notify parent to open new window (this will be handled by QTTabBarClass)
+                                    if (OnTabDraggedToNewWindow != null) {
+                                        OnTabDraggedToNewWindow(wrapper);
+                                    }
+
+                                    // Remove the tab from current window since it's moving to new window
+                                    if (tabPages.Count > 1) {
+                                        tabPages.Remove(tab);
+                                        Invalidate();
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            // Fallback to path-based creation
+                            using (IDLWrapper wrapper = new IDLWrapper(tab.CurrentPath)) {
+                                if (wrapper.Available) {
+                                    if (OnTabDraggedToNewWindow != null) {
+                                        OnTabDraggedToNewWindow(wrapper);
+                                    }
+                                    if (tabPages.Count > 1) {
+                                        tabPages.Remove(tab);
+                                        Invalidate();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "HandleGroupDrop new window creation");
+                    }
+                    return;
+                }
+
+                // Validate drop index bounds to prevent ArgumentOutOfRangeException
+                if (currentIndex >= 0 && currentIndex < tabPages.Count &&
+                    dropIndex >= 0 && dropIndex <= tabPages.Count &&
+                    dropIndex != currentIndex) {
+
+                    // Clamp dropIndex to valid range
+                    dropIndex = Math.Max(0, Math.Min(dropIndex, tabPages.Count));
+
+                    // Special handling for position 0 - always allow dropping before everything
+                    if (dropIndex == 0) {
+                        try {
+                            tabPages.Relocate(currentIndex, dropIndex);
+                        }
+                        catch (ArgumentOutOfRangeException ex) {
+                            QTUtility2.MakeErrorLog(ex, "HandleGroupDrop Relocate to 0");
+                        }
+                    }
+                    else if (!WouldSplitIslandGroup(currentIndex, dropIndex)) {
+                        try {
+                            tabPages.Relocate(currentIndex, dropIndex);
+                        }
+                        catch (ArgumentOutOfRangeException ex) {
+                            QTUtility2.MakeErrorLog(ex, "HandleGroupDrop Relocate general");
+                        }
+                    }
+                }
+            }
+        }
+
+        private int GetDropIndex(Point location) {
+            // Determine the drop index based on mouse position
+            // Return -1 if location is invalid/outside tab area
+
+            if (tabPages.Count == 0) {
+                return 0;
+            }
+
+            // Check if location is within reasonable bounds of the control
+            Rectangle controlBounds = new Rectangle(0, 0, Width, Height);
+            controlBounds.Inflate(100, 50); // Allow more tolerance for drag operations and new window creation
+            if (!controlBounds.Contains(location)) {
+                return -1; // Invalid drop location (triggers new window creation)
+            }
+
+            // Check if we're before the first tab (including island indicators)
+            Rectangle firstTabRect = GetTabRect(0, false);
+            if (!firstTabRect.IsEmpty) {
+                // Check for island indicators before first tab
+                int leftmostX = firstTabRect.Left;
+                foreach (var state in groupStates.Values) {
+                    if (state != null && !state.AnchorBounds.IsEmpty) {
+                        Rectangle anchor = state.AnchorBounds;
+                        if ((iMultipleType == 0) && fNeedToDrawUpDown) {
+                            anchor.Offset(iScrollWidth, 0);
+                        }
+                        leftmostX = Math.Min(leftmostX, anchor.Left);
+                    }
+                }
+
+                // If mouse is before the leftmost element, insert at position 0
+                if (location.X < leftmostX + 10) { // Small buffer for easier targeting
+                    return 0;
+                }
+            }
+
+            // Check each tab to find insertion point
+            for (int i = 0; i < tabPages.Count; i++) {
+                Rectangle tabRect = GetTabRect(i, false);
+                if (tabRect.IsEmpty) continue;
+
+                if (location.X < tabRect.Left + tabRect.Width / 2) {
+                    return i; // Insert before this tab
+                }
+            }
+
+            // Make sure we don't return an invalid index
+            return Math.Min(tabPages.Count, tabPages.Count);
         }
 
         private bool TryHandleGroupIndicatorClick(Point location) {
             UpdateGroupIslandGeometry();
             foreach(var state in groupStates.Values) {
-                Rectangle rect = state.RailBounds;
-                if(rect.Width <= 0 || rect.Height <= 0) {
-                    continue;
-                }
+                Rectangle railRect = state.RailBounds;
+                Rectangle islandRect = state.IslandBounds;
+
+                // Apply scroll offset for drawing
                 if((iMultipleType == 0) && fNeedToDrawUpDown) {
-                    rect.Offset(iScrollWidth, 0);
+                    if(!railRect.IsEmpty) {
+                        railRect.Offset(iScrollWidth, 0);
+                    }
+                    if(!islandRect.IsEmpty) {
+                        islandRect.Offset(iScrollWidth, 0);
+                    }
                 }
-                if(rect.Contains(location)) {
-                    ToggleGroup(state.Name);
-                    return true;
+
+                bool hitRail = !railRect.IsEmpty && railRect.Contains(location);
+                bool hitIsland = !state.IsCollapsed && !islandRect.IsEmpty && islandRect.Contains(location);
+
+                if(hitRail || hitIsland) {
+                    // Check if this is a rail click (for toggling) vs island drag
+                    if(hitRail && !hitIsland) {
+                        // Click directly on rail indicator - this will toggle if no drag occurs
+                        draggingGroup = state;
+                        groupingDragOrigin = location;
+                        groupingDragActive = false;
+                        return true;
+                    } else if(hitIsland) {
+                        // Click on expanded island area - this enables dragging the whole group
+                        draggingGroup = state;
+                        groupingDragOrigin = location;
+                        groupingDragActive = false;
+                        return true;
+                    }
                 }
             }
             return false;
+        }
+
+        private TabGroupState GetGroupDropTarget(Point location) {
+            // For group drops, we need to find valid insertion points between other groups or tabs
+            // Check if we're dropping on another group's island area
+            foreach(var state in groupStates.Values) {
+                if(state == null || state == draggingGroup) {
+                    continue;
+                }
+                Rectangle island = state.IslandBounds;
+                Rectangle rail = state.RailBounds;
+                if((iMultipleType == 0) && fNeedToDrawUpDown) {
+                    if(!island.IsEmpty) {
+                        island.Offset(iScrollWidth, 0);
+                    }
+                    if(!rail.IsEmpty) {
+                        rail.Offset(iScrollWidth, 0);
+                    }
+                }
+                // Check if dropping on island area (for merging) or rail area (for position indication)
+                if((!island.IsEmpty && island.Contains(location)) || (!rail.IsEmpty && rail.Contains(location))) {
+                    return state;
+                }
+            }
+            // Return null if not dropping on another group (indicates reordering to empty space)
+            return null;
+        }
+
+        private void HandleGroupReorder(TabGroupState group, Point dropLocation) {
+            if(group == null || group.Tabs == null || group.Tabs.Count == 0) {
+                return;
+            }
+
+            // Check if mouse is outside the control bounds - create new window if so
+            Rectangle controlBounds = new Rectangle(0, 0, Width, Height);
+            if (!controlBounds.Contains(dropLocation)) {
+                HandleGroupToNewWindow(group);
+                return;
+            }
+
+            // Get the drop index based on location
+            int dropIndex = GetDropIndex(dropLocation);
+
+            // Get all tabs in the group
+            List<QTabItem> groupTabs = new List<QTabItem>(group.Tabs);
+            groupTabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+
+            if(groupTabs.Count == 0) {
+                return;
+            }
+
+            // Sort by current position
+            groupTabs.Sort((a, b) => tabPages.IndexOf(a).CompareTo(tabPages.IndexOf(b)));
+
+            // Find the current range of the group
+            int firstIndex = tabPages.IndexOf(groupTabs[0]);
+            int lastIndex = tabPages.IndexOf(groupTabs[groupTabs.Count - 1]);
+
+            // Don't move if dropping within the group's current range
+            if(dropIndex >= firstIndex && dropIndex <= lastIndex + 1) {
+                return;
+            }
+
+            // Store the group's original collapse state
+            bool wasCollapsed = group.IsCollapsed;
+            string groupName = group.Name;
+
+            // Remove all group tabs from their current positions (in reverse order)
+            for(int i = groupTabs.Count - 1; i >= 0; i--) {
+                tabPages.Remove(groupTabs[i]);
+            }
+
+            // Adjust drop index if it was after removed tabs
+            int adjustedDropIndex = dropIndex;
+            if(dropIndex > firstIndex) {
+                adjustedDropIndex -= groupTabs.Count;
+            }
+
+            // Ensure drop index is valid
+            if(adjustedDropIndex < 0) {
+                adjustedDropIndex = 0;
+            }
+            if(adjustedDropIndex > tabPages.Count) {
+                adjustedDropIndex = tabPages.Count;
+            }
+
+            // Insert all group tabs at the new position
+            for(int i = 0; i < groupTabs.Count; i++) {
+                tabPages.Insert(adjustedDropIndex + i, groupTabs[i]);
+            }
+
+            // Restore the group state and ensure tabs maintain their group assignment
+            TabGroupState restoredState;
+            if(groupStates.TryGetValue(groupName, out restoredState)) {
+                restoredState.IsCollapsed = wasCollapsed;
+                restoredState.Tabs.Clear();
+                restoredState.Tabs.AddRange(groupTabs);
+
+                // Re-assign group keys to all tabs to ensure they stay grouped
+                foreach(QTabItem tab in groupTabs) {
+                    if(tab != null) {
+                        tab.GroupKey = groupName;
+                        tab.CollapsedByGroup = wasCollapsed;
+                    }
+                }
+
+                // Apply the collapse state
+                ApplyGroupCollapseState(restoredState);
+            }
+
+            // Update the selected index if it was affected
+            if(iSelectedIndex >= 0 && iSelectedIndex < tabPages.Count) {
+                QTabItem selectedTab = tabPages[iSelectedIndex];
+                if(groupTabs.Contains(selectedTab)) {
+                    iSelectedIndex = tabPages.IndexOf(selectedTab);
+                }
+            }
+
+            // Force complete refresh to ensure group indicators are redrawn
+            SyncGroupOrder();
+            UpdateGroupIslandGeometry();
+            EnsureSelectionForCollapsedGroups();
+            Invalidate();
+            Update(); // Force immediate repaint
+        }
+
+        private void HandleGroupToNewWindow(TabGroupState group) {
+            if (group == null || group.Tabs == null || group.Tabs.Count == 0) {
+                return;
+            }
+
+            try {
+                // Get all tabs in the group that are still valid
+                List<QTabItem> groupTabs = new List<QTabItem>(group.Tabs);
+                groupTabs.RemoveAll(tab => tab == null || !tabPages.Contains(tab));
+
+                if (groupTabs.Count == 0) {
+                    return;
+                }
+
+                // Create paths for new window
+                List<string> paths = new List<string>();
+                foreach (QTabItem tab in groupTabs) {
+                    if (tab != null && !string.IsNullOrEmpty(tab.CurrentPath)) {
+                        paths.Add(tab.CurrentPath);
+                    }
+                }
+
+                if (paths.Count == 0) {
+                    return;
+                }
+
+                // Use the first tab's path to create the new window via event
+                if (OnTabDraggedToNewWindow != null && paths.Count > 0) {
+                    using (IDLWrapper wrapper = new IDLWrapper(paths[0])) {
+                        if (wrapper.Available) {
+                            // Store additional paths to be opened in the new window
+                            if (paths.Count > 1) {
+                                for (int i = 1; i < paths.Count; i++) {
+                                    StaticReg.CreateWindowPaths.Add(paths[i]);
+                                }
+                            }
+
+                            // Notify parent to create new window
+                            OnTabDraggedToNewWindow(wrapper);
+
+                            // Remove tabs from current window
+                            foreach (QTabItem tab in groupTabs) {
+                                if (tab != null && tabPages.Contains(tab)) {
+                                    tabPages.Remove(tab);
+                                }
+                            }
+
+                            // Clean up group state
+                            if (groupStates.ContainsKey(group.Name)) {
+                                groupStates.Remove(group.Name);
+                            }
+
+                            // Update display
+                            SyncGroupOrder();
+                            UpdateGroupIslandGeometry();
+                            EnsureSelectionForCollapsedGroups();
+                            Invalidate();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "HandleGroupToNewWindow");
+            }
         }
 
         
@@ -2924,16 +3580,44 @@ namespace QTTabBarLib {
             }
 
             public void Relocate(int indexSource, int indexDestination) {
+                // Validate indices
+                if (indexSource < 0 || indexSource >= Count ||
+                    indexDestination < 0 || indexDestination > Count) {
+                    return; // Invalid indices
+                }
+
+                if (indexSource == indexDestination) {
+                    return; // No move needed
+                }
+
+                // Check if this move would split an island group
+                if (Owner.WouldSplitIslandGroup(indexSource, indexDestination)) {
+                    return; // Don't allow moves that would split island groups
+                }
+
                 int selectedIndex = Owner.SelectedIndex;
                 int num2 = (indexSource > indexDestination) ? indexSource : indexDestination;
                 int num3 = (indexSource > indexDestination) ? indexDestination : indexSource;
                 QTabItem item = base[indexSource];
+
+                // Calculate the adjusted destination index after removal
+                int adjustedDestination = indexDestination;
+                if (indexSource < indexDestination) {
+                    adjustedDestination--; // Destination shifts left after removal
+                }
+
                 base.Remove(item);
-                base.Insert(indexDestination, item);
+
+                // Ensure adjusted destination is still valid
+                if (adjustedDestination > Count) {
+                    adjustedDestination = Count;
+                }
+
+                base.Insert(adjustedDestination, item);
                 if((num2 >= selectedIndex) && (selectedIndex >= num3)) {
                     if(num2 == selectedIndex) {
                         if(num2 == indexSource) {
-                            Owner.SelectedIndex = indexDestination;
+                            Owner.SelectedIndex = adjustedDestination;
                         }
                         else {
                             Owner.SelectedIndex--;
@@ -2952,7 +3636,7 @@ namespace QTTabBarLib {
                             Owner.SelectedIndex++;
                         }
                         else {
-                            Owner.SelectedIndex = indexDestination;
+                            Owner.SelectedIndex = adjustedDestination;
                         }
                     }
                 }
@@ -2960,7 +3644,173 @@ namespace QTTabBarLib {
                 Owner.Refresh();
             }
         }
+
+        private void CreateDragPreview(QTabItem tab) {
+            if (tab == null || dragPreviewForm != null) {
+                return;
+            }
+
+            try {
+                // Create a bitmap of the tab
+                Rectangle tabBounds = GetTabRect(tabPages.IndexOf(tab), true);
+                if (tabBounds.Width <= 0 || tabBounds.Height <= 0) {
+                    return;
+                }
+
+                Bitmap tabBitmap = new Bitmap(tabBounds.Width, tabBounds.Height);
+                using (Graphics g = Graphics.FromImage(tabBitmap)) {
+                    g.Clear(Color.Transparent);
+
+                    // Draw the tab on the bitmap
+                    Rectangle drawRect = new Rectangle(0, 0, tabBounds.Width, tabBounds.Height);
+                    int tabIndex = tabPages.IndexOf(tab);
+                    DrawTab(g, drawRect, tabIndex, null, true);
+                }
+
+                // Create translucent form
+                dragPreviewForm = new Form {
+                    FormBorderStyle = FormBorderStyle.None,
+                    BackColor = Color.Magenta,
+                    TransparencyKey = Color.Magenta,
+                    TopMost = true,
+                    ShowInTaskbar = false,
+                    Size = tabBounds.Size,
+                    Opacity = 0.7
+                };
+
+                // Set the bitmap as background
+                dragPreviewForm.BackgroundImage = tabBitmap;
+                dragPreviewForm.BackgroundImageLayout = ImageLayout.None;
+
+                // Position at cursor
+                Point cursorPos = Cursor.Position;
+                dragPreviewForm.Location = new Point(
+                    cursorPos.X - tabBounds.Width / 2,
+                    cursorPos.Y - tabBounds.Height / 2);
+
+                dragPreviewForm.Show();
+                showDragPreview = true;
+            }
+            catch {
+                DisposeDragPreview();
+            }
+        }
+
+        private void CreateGroupDragPreview(TabGroupState groupState) {
+            if (groupState == null || groupState.Tabs == null || groupState.Tabs.Count == 0 || dragPreviewForm != null) {
+                return;
+            }
+
+            try {
+                // Calculate bounds for the entire island (all tabs in the group)
+                Rectangle totalBounds = Rectangle.Empty;
+                List<Rectangle> tabBounds = new List<Rectangle>();
+
+                foreach (QTabItem tab in groupState.Tabs) {
+                    if (tab == null || !tabPages.Contains(tab)) continue;
+
+                    int tabIndex = tabPages.IndexOf(tab);
+                    Rectangle bounds = GetTabRect(tabIndex, true);
+                    if (bounds.Width > 0 && bounds.Height > 0) {
+                        tabBounds.Add(bounds);
+                        if (totalBounds.IsEmpty) {
+                            totalBounds = bounds;
+                        } else {
+                            totalBounds = Rectangle.Union(totalBounds, bounds);
+                        }
+                    }
+                }
+
+                if (totalBounds.Width <= 0 || totalBounds.Height <= 0 || tabBounds.Count == 0) {
+                    return;
+                }
+
+                // Create bitmap for the island
+                Bitmap islandBitmap = new Bitmap(totalBounds.Width, totalBounds.Height);
+                using (Graphics g = Graphics.FromImage(islandBitmap)) {
+                    g.Clear(Color.Transparent);
+
+                    // Draw each tab in the group
+                    foreach (QTabItem tab in groupState.Tabs) {
+                        if (tab == null || !tabPages.Contains(tab)) continue;
+
+                        int tabIndex = tabPages.IndexOf(tab);
+                        Rectangle bounds = GetTabRect(tabIndex, true);
+                        if (bounds.Width > 0 && bounds.Height > 0) {
+                            Rectangle drawRect = new Rectangle(
+                                bounds.X - totalBounds.X,
+                                bounds.Y - totalBounds.Y,
+                                bounds.Width,
+                                bounds.Height);
+                            DrawTab(g, drawRect, tabIndex, null, true);
+                        }
+                    }
+
+                    // Draw group rail/indicator
+                    Color accent = ResolveGroupAccent(groupState.Name);
+                    Rectangle railRect = new Rectangle(0, totalBounds.Height - 6, totalBounds.Width, 6);
+                    DrawGroupRail(g, railRect, accent, false, false);
+                }
+
+                // Create translucent form
+                dragPreviewForm = new Form {
+                    FormBorderStyle = FormBorderStyle.None,
+                    BackColor = Color.Magenta,
+                    TransparencyKey = Color.Magenta,
+                    TopMost = true,
+                    ShowInTaskbar = false,
+                    Size = totalBounds.Size,
+                    Opacity = 0.7
+                };
+
+                // Set the bitmap as background
+                dragPreviewForm.BackgroundImage = islandBitmap;
+                dragPreviewForm.BackgroundImageLayout = ImageLayout.None;
+
+                // Position at cursor
+                Point cursorPos = Cursor.Position;
+                dragPreviewForm.Location = new Point(
+                    cursorPos.X - totalBounds.Width / 2,
+                    cursorPos.Y - totalBounds.Height / 2);
+
+                dragPreviewForm.Show();
+                showDragPreview = true;
+            }
+            catch {
+                DisposeDragPreview();
+            }
+        }
+
+        private void UpdateDragPreview(Point screenLocation) {
+            if (dragPreviewForm != null && showDragPreview) {
+                try {
+                    dragPreviewForm.Location = new Point(
+                        screenLocation.X - dragPreviewForm.Width / 2,
+                        screenLocation.Y - dragPreviewForm.Height / 2);
+                }
+                catch {
+                    DisposeDragPreview();
+                }
+            }
+        }
+
+        private void DisposeDragPreview() {
+            showDragPreview = false;
+            if (dragPreviewForm != null) {
+                try {
+                    if (dragPreviewForm.BackgroundImage != null) {
+                        dragPreviewForm.BackgroundImage.Dispose();
+                    }
+                    dragPreviewForm.Close();
+                    dragPreviewForm.Dispose();
+                }
+                catch { }
+                finally {
+                    dragPreviewForm = null;
+                }
+            }
+        }
     }
 
-  
+
 }

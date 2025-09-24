@@ -20,6 +20,7 @@ namespace QTTabBarLib {
         }
 
         public override void InitializeConfig() {
+            DataContext = WorkingConfig.misc;
             RefreshSessions();
         }
 

@@ -22,7 +22,9 @@ namespace QTTabBarLib {
         }
 
         public override void InitializeConfig() {
-            // Not needed; everything is done through bindings
+            if(WorkingConfig != null && WorkingConfig.window != null) {
+                DataContext = WorkingConfig.window;
+            }
         }
 
         public override void ResetConfig() {

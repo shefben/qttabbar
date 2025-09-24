@@ -161,6 +161,24 @@
             Content="{qt:Resx Key=Options_Page05_General, Index=17}"
             IsChecked="{Binding Path=EnableLog}"
             Style="{StaticResource CheckStyle}"/>
+        <Label
+            Content="Git Integration"
+            Style="{StaticResource SectionHeaderStyle}"/>
+        <CheckBox x:Name="UseTortoiseGit"
+            Content="Use TortoiseGit for Git operations (if installed)"
+            IsChecked="{Binding Path=UseTortoiseGit}"
+            Style="{StaticResource CheckStyle}"/>
+        <Label
+            Content="Tag Display"
+            Style="{StaticResource SectionHeaderStyle}"/>
+        <CheckBox x:Name="HighlightTagged"
+            Content="Highlight tagged files and folders with background color"
+            IsChecked="{Binding Path=HighlightTagged}"
+            Style="{StaticResource CheckStyle}"/>
+        <CheckBox x:Name="DimUntagged"
+            Content="Dim untagged files and folders (gray text)"
+            IsChecked="{Binding Path=DimUntagged}"
+            Style="{StaticResource CheckStyle}"/>
 <!--        <Label
             Content="GC"
             Style="{StaticResource SectionHeaderStyle}"/>

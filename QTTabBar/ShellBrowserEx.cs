@@ -55,12 +55,30 @@ namespace QTTabBarLib {
 
         public FVM ViewMode {
             get {
-                FVM pViewMode = 0;
-                return folderView != null && folderView.GetCurrentViewMode(ref pViewMode) == 0
-                        ? pViewMode : FVM.ICON;
+                var localFolderView = folderView;
+                if(localFolderView != null) {
+                    try {
+                        FVM pViewMode = 0;
+                        if(localFolderView.GetCurrentViewMode(ref pViewMode) == 0) {
+                            return pViewMode;
+                        }
+                    }
+                    catch(Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "Failed to get current view mode");
+                    }
+                }
+                return FVM.ICON;
             }
             set {
-                if(folderView != null) folderView.SetCurrentViewMode(value);
+                var localFolderView = folderView;
+                if(localFolderView != null) {
+                    try {
+                        localFolderView.SetCurrentViewMode(value);
+                    }
+                    catch(Exception ex) {
+                        QTUtility2.MakeErrorLog(ex, "Failed to set view mode");
+                    }
+                }
             }
         }
 
@@ -90,22 +108,46 @@ namespace QTTabBarLib {
 
         public void Dispose() {
             if(shellBrowser != null) {
-              QTUtility2.log("ReleaseComObject shellBrowser");
-              Marshal.FinalReleaseComObject(shellBrowser);
-              shellBrowser = null;
+                try {
+                    QTUtility2.log("ReleaseComObject shellBrowser");
+                    Marshal.FinalReleaseComObject(shellBrowser);
+                }
+                catch(Exception ex) {
+                    QTUtility2.MakeErrorLog(ex, "Failed to release shellBrowser");
+                }
+                finally {
+                    shellBrowser = null;
+                }
             }
             if(folderView != null) {
-                QTUtility2.log("ReleaseComObject folderView");
-               Marshal.ReleaseComObject(folderView);
-             //  folderView = null;
+                try {
+                    QTUtility2.log("ReleaseComObject folderView");
+                    Marshal.FinalReleaseComObject(folderView);
+                }
+                catch(Exception ex) {
+                    QTUtility2.MakeErrorLog(ex, "Failed to release folderView");
+                }
+                finally {
+                    folderView = null;
+                }
             }
         }
         
         public IntPtr GetExplorerHandle() {
-            IntPtr hwnd;
-            shellBrowser.GetWindow(out hwnd);
-            IntPtr parent = PInvoke.GetParent(hwnd);
-            return parent != IntPtr.Zero ? parent : hwnd;
+            if(shellBrowser == null) {
+                return IntPtr.Zero;
+            }
+            try {
+                IntPtr hwnd;
+                if(shellBrowser.GetWindow(out hwnd) == 0) {
+                    IntPtr parent = PInvoke.GetParent(hwnd);
+                    return parent != IntPtr.Zero ? parent : hwnd;
+                }
+            }
+            catch(Exception ex) {
+                QTUtility2.MakeErrorLog(ex, "Failed to get explorer handle");
+            }
+            return IntPtr.Zero;
         }
 
         

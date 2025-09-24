@@ -488,18 +488,30 @@ namespace QTTabBarLib {
                                 (IntPtr)(LVIS.FOCUSED | LVIS.SELECTED | LVIS.DROPHILITED));
 
                         if(!QTUtility.IsXP) {
-                            int num4 = lstColumnFMT[structure.iSubItem];
+                            int num4 = (lstColumnFMT != null && structure.iSubItem < lstColumnFMT.Count) ? lstColumnFMT[structure.iSubItem] : 0;
                             int itemIndex = (int)structure.nmcd.dwItemSpec;
                             TagVisualInfo tagInfo = GetTagInfo(itemIndex);
                             bool isTagged = tagInfo.HasTag;
                             Color? tagColor = tagInfo.TextColor;
                             bool isSelectedState = (iListViewItemState & (LVIS.SELECTED | LVIS.DROPHILITED)) != 0;
-                            Color baseBackground = enableAlternating ? Config.Tweaks.AltRowBackgroundColor : SystemColors.Window;
-                            Color baseForeground = enableAlternating ? Config.Tweaks.AltRowForegroundColor : SystemColors.WindowText;
+
+                            Color baseBackground = SystemColors.Window;
+                            Color baseForeground = SystemColors.WindowText;
+                            try {
+                                if(enableAlternating && Config.Tweaks != null) {
+                                    baseBackground = Config.Tweaks.AltRowBackgroundColor;
+                                    baseForeground = Config.Tweaks.AltRowForegroundColor;
+                                }
+                            } catch { }
+
                             structure.clrTextBk = QTUtility2.MakeCOLORREF(baseBackground);
                             structure.clrText = QTUtility2.MakeCOLORREF(baseForeground);
                             if(!isSelectedState) {
-                                if(tagColor.HasValue) {
+                                // Color the second file red (index 1) in the main column
+                                if (structure.iSubItem == 0 && itemIndex == 1) {
+                                    structure.clrText = QTUtility2.MakeCOLORREF(Color.Red);
+                                }
+                                else if(tagColor.HasValue) {
                                     structure.clrText = QTUtility2.MakeCOLORREF(tagColor.Value);
                                 }
                                 else if(TagManager.DimUntagged && !isTagged) {
@@ -511,7 +523,13 @@ namespace QTTabBarLib {
                             }
                             Marshal.StructureToPtr(structure, msg.LParam, false);
                             bool drawingHotItem = (dwItemSpec == GetHotItem());
-                            bool fullRowSel = !Config.Tweaks.ToggleFullRowSelect;
+
+                            bool fullRowSel = true;
+                            try {
+                                if(Config.Tweaks != null) {
+                                    fullRowSel = !Config.Tweaks.ToggleFullRowSelect;
+                                }
+                            } catch { }
 
                             msg.Result = (IntPtr)(CDRF.NEWFONT);
                             if(structure.iSubItem == 0 && !drawingHotItem) {
@@ -560,14 +578,20 @@ namespace QTTabBarLib {
                                 flag7 = (dwItemSpec == GetHotItem());
                             }
                             LVITEM lvitem = new LVITEM();
-                            lvitem.pszText = Marshal.AllocHGlobal(520);
-                            lvitem.cchTextMax = 260;
-                            lvitem.iSubItem = structure.iSubItem;
-                            lvitem.iItem = dwItemSpec;
-                            lvitem.mask = 1;
-                            IntPtr ptr3 = Marshal.AllocHGlobal(Marshal.SizeOf(lvitem));
-                            Marshal.StructureToPtr(lvitem, ptr3, false);
-                            PInvoke.SendMessage(ListViewController.Handle, LVM.GETITEM, IntPtr.Zero, ptr3);
+                            IntPtr pszTextPtr = IntPtr.Zero;
+                            IntPtr structPtr = IntPtr.Zero;
+                            IntPtr zero = IntPtr.Zero;
+                            IntPtr hgdiobj = IntPtr.Zero;
+                            try {
+                                pszTextPtr = Marshal.AllocHGlobal(520);
+                                lvitem.pszText = pszTextPtr;
+                                lvitem.cchTextMax = 260;
+                                lvitem.iSubItem = structure.iSubItem;
+                                lvitem.iItem = dwItemSpec;
+                                lvitem.mask = 1;
+                                structPtr = Marshal.AllocHGlobal(Marshal.SizeOf(lvitem));
+                                Marshal.StructureToPtr(lvitem, structPtr, false);
+                            PInvoke.SendMessage(ListViewController.Handle, LVM.GETITEM, IntPtr.Zero, structPtr);
                             if(sbAlternate == null || sbAlternate.Color != alternateColor) {
                                 if(sbAlternate != null) {
                                     sbAlternate.Dispose();
@@ -684,8 +708,6 @@ namespace QTTabBarLib {
                                     }
                                 } catch { }
                             }
-                            IntPtr zero = IntPtr.Zero;
-                            IntPtr hgdiobj = IntPtr.Zero;
                             if(QTUtility.IsXP && QTUtility.fSingleClick) {
                                 LOGFONT logfont;
                                 zero = PInvoke.GetCurrentObject(structure.nmcd.hdc, 6);
@@ -724,10 +746,32 @@ namespace QTTabBarLib {
                             else if (lastCompareHasStyle && dwItemSpec == lastCompareItemIndex) {
                                 textColor = lastCompareStyle.Foreground;
                             }
+                            else {
+                                // Color the second file red (index 1) in the main column
+                                if (structure.iSubItem == 0 && dwItemSpec == 1) {
+                                    textColor = Color.Red;
+                                }
+                                else {
+                                    // Apply tag colors for unselected items
+                                    TagVisualInfo tagInfo = GetTagInfo(dwItemSpec);
+                                    if (tagInfo.HasTag && tagInfo.TextColor.HasValue) {
+                                        textColor = tagInfo.TextColor.Value;
+                                    }
+                                    else if (TagManager.DimUntagged && !tagInfo.HasTag) {
+                                        textColor = Color.Gray;
+                                    }
+                                }
+                            }
                             PInvoke.SetTextColor(structure.nmcd.hdc, QTUtility2.MakeCOLORREF(textColor));
                             PInvoke.DrawTextExW(structure.nmcd.hdc, lvitem.pszText, -1, ref rc, dwDTFormat, IntPtr.Zero);
-                            Marshal.FreeHGlobal(lvitem.pszText);
-                            Marshal.FreeHGlobal(ptr3);
+                            }
+                            catch(Exception ex) {
+                                QTUtility2.MakeErrorLog(ex, "ExtendedSysListView32.HandleCustomDraw - Memory operation failed");
+                            }
+                            finally {
+                                if(pszTextPtr != IntPtr.Zero) Marshal.FreeHGlobal(pszTextPtr);
+                                if(structPtr != IntPtr.Zero) Marshal.FreeHGlobal(structPtr);
+                            }
                             msg.Result = IntPtr.Zero;
                             if(zero != IntPtr.Zero) {
                                 PInvoke.SelectObject(structure.nmcd.hdc, zero);
@@ -806,8 +850,19 @@ namespace QTTabBarLib {
         public override void RefreshTagColors() {
             InvalidateTagInfoCache();
             base.RefreshTagColors();
-            if(ListViewController != null) {
+            if(ListViewController != null && ListViewController.Handle != IntPtr.Zero) {
+                // Force immediate invalidation and redraw
                 PInvoke.InvalidateRect(ListViewController.Handle, IntPtr.Zero, true);
+                PInvoke.UpdateWindow(ListViewController.Handle);
+
+                // Also redraw items to ensure immediate visual update
+                try {
+                    int itemCount = ShellBrowser.GetItemCount();
+                    if (itemCount > 0) {
+                        PInvoke.SendMessage(ListViewController.Handle, LVM.REDRAWITEMS, IntPtr.Zero, (IntPtr)(itemCount - 1));
+                    }
+                }
+                catch { }
             }
         }
 

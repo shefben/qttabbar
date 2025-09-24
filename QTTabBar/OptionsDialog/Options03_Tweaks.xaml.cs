@@ -29,7 +29,7 @@ namespace QTTabBarLib {
         public static bool IsWin7 { get { return QTUtility.IsWin7; } }
 
         public override void InitializeConfig() {
-            // Not needed; everything is done through bindings
+            DataContext = WorkingConfig.tweaks;
         }
 
         public override void ResetConfig() {
